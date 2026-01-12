@@ -1,0 +1,11 @@
+# Core dependencies
+rdflib>=7.0.0
+SPARQLWrapper>=2.0.0
+requests>=2.31.0
+
+# FastAPI for backend API
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Optional: for better error messages and debugging
+python-dotenv>=1.0.0
