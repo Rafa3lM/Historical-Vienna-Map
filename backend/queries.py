@@ -36,53 +36,35 @@ class SparqlQueries:
         """
 
         # Build entity type filter
+        # TODO do not allow empty types?
+        types_empty = (not building_types or len(building_types) == 0) and (
+                not event_types or len(event_types) == 0) and (not place_types or len(place_types) == 0)
         type_filters = []
-        if building_types and len(building_types) > 0:
-            type_filters.append('?sub property:Art_des_Bauwerks ?building_type')
-        if event_types and len(event_types) > 0:
-            type_filters.append('?sub property:Art_des_Ereignisses ?event_type')
-        if place_types and len(place_types) > 0:
-            type_filters.append('?sub property:Art_des_Objekts ?place_type')
+        if building_types and len(building_types) > 0 or types_empty:
+            type_filters.append('?sub property:Art_des_Bauwerks ?type')
+        if event_types and len(event_types) > 0 or types_empty:
+            type_filters.append('?sub property:Art_des_Ereignisses ?type')
+        if place_types and len(place_types) > 0 or types_empty:
+            type_filters.append('?sub property:Art_des_Objekts ?type')
 
         type_union = " UNION ".join([f"{{ {f} }}" for f in type_filters]) if type_filters else "{ ?sub a ?anyType }"
 
-        # Build building type filter
-        building_type_filter = ""
-        if building_types and len(building_types) > 0:
-            building_types_str = ", ".join([f'wiki:{t}' for t in building_types])
-            building_type_filter = f"""
-            # Filter by building category
-            ?sub property:Art_des_Bauwerks ?typeLabel .
-            FILTER(?typeLabel IN ({building_types_str}))
+        # Build type filter
+        types = []
+        if building_types:
+            types.extend(building_types)
+        if event_types:
+            types.extend(event_types)
+        if place_types:
+            types.extend(place_types)
+
+        type_filter = ""
+        if types and len(types) > 0:
+            types_string = ", ".join([f'wiki:{t}' for t in types])
+            type_filter = f"""
+            # Filter by type
+            FILTER(?type IN ({types_string}))
             """
-
-        # Build event type filter
-        event_type_filter = ""
-        if event_types and len(event_types) > 0:
-            event_types_string = ", ".join([f'wiki:{t}' for t in building_types])
-            event_type_filter = f"""
-                # Filter by event category
-                ?sub property:Art_des_Ereignisses ?typeLabel .
-                FILTER(STR(?typeLabel) IN ({event_types_string}))
-                """
-
-        # Build place type filter
-        place_type_filter = ""
-        if place_types and len(place_types) > 0:
-            event_types_string = ", ".join([f'wiki:{t}' for t in building_types])
-            place_type_filter = f"""
-                # Filter by place category
-                ?sub property:Art_des_Objekts ?typeLabel .
-                FILTER(STR(?typeLabel) IN ({event_types_string}))
-                """
-
-        # Build specific entity type filter (Art_des_Bauwerks)
-
-        # entity_type_filter = ""
-        # if entity_types and len(entity_types) > 0:
-        #     # Convert URIs to filter
-        #     uris = ", ".join([f"<{t}>" for t in entity_types])
-        #     entity_type_filter = f"FILTER(?type IN ({uris}))"
 
         # Historical filter
         historical_filter = ""
@@ -100,8 +82,8 @@ class SparqlQueries:
         
         SELECT DISTINCT 
             ?sub 
-            ?type 
             ?label 
+            ?type
             (STR(?startDate) AS ?start)
             (STR(?endDate) AS ?end)
             ?historical 
@@ -111,24 +93,29 @@ class SparqlQueries:
             {type_union}
             
             # Required properties
-            ?sub property:Art_des_Bauwerks ?type ;
-                 rdfs:label ?label ;
+            ?sub rdfs:label ?label ;
                  geo:hasGeometry/geo:asWKT ?wkt .
             
             # Optional properties
             OPTIONAL {{ ?sub property:Historisch ?historical }}.
-            OPTIONAL {{ ?sub schema:startDate ?startDate }}.
-            OPTIONAL {{ ?sub schema:endDate ?endDate }}.
+            OPTIONAL {{ ?sub schema:startDate ?startDate . 
+        		FILTER (DATATYPE(?startDate) = xsd:gYear || 
+        		DATATYPE(?startDate) = xsd:date ||
+        		DATATYPE(?startDate) = xsd:gYearMonth)
+        		}} .
+            OPTIONAL {{ ?sub schema:endDate ?endDate .
+   				FILTER (DATATYPE(?endDate) = xsd:gYear || 
+        		DATATYPE(?endDate) = xsd:date || 
+        		DATATYPE(?endDate) = xsd:gYearMonth)
+        		}} .
             
-            {building_type_filter}
-            {event_type_filter}
-            {place_type_filter}
+            {type_filter}
             {historical_filter}
             
             # Temporal filter: Entity existed at some point in timeframe
             FILTER (
-                (!BOUND(?startDate) || xsd:integer(?startDate) <= {to_year}) &&
-                (!BOUND(?endDate) || xsd:integer(?endDate) >= {from_year})
+                (!BOUND(?startDate) || YEAR(?startDate) <= {to_year}) &&
+                (!BOUND(?endDate) || YEAR(?endDate) >= {from_year})
             )
             
             # Spatial filter: Within radius
