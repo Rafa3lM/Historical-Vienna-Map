@@ -1,0 +1,25 @@
+PREFIX schema: <https://schema.org/>
+PREFIX property: <http://www.geschichtewiki.wien.gv.at/Special:URIResolver/Property-3A>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT DISTINCT ?entity ?type WHERE {
+    {
+        # Architects (Artists)
+        ?building schema:artist ?entity .
+        BIND("architect" AS ?type)
+    } UNION {
+        # Famous Inhabitants
+        ?building schema:relatedTo ?entity .
+        BIND("inhabitant" AS ?type)
+    } UNION {
+        # Named After
+        ?building property:Benannt_nach ?entity .
+        BIND("namedAfter" AS ?type)
+    }
+    FILTER (STRSTARTS(STR(?entity), "http://www.geschichtewiki.wien.gv.at/Special:URIResolver/"))
+
+    # Only get entities that don't have detailed data yet
+    FILTER NOT EXISTS {
+        ?entity <http://www.w3.org/2000/01/rdf-schema#label> ?label .
+    }
+}

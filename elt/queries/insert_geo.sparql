@@ -1,32 +1,22 @@
 PREFIX geo: <http://www.opengis.net/ont/geosparql#>
 PREFIX schema: <https://schema.org/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 INSERT {
-    ?sub geo:hasGeometry ?geom .
-    ?geom rdf:type geo:Geometry .
-    ?geom geo:asWKT ?wkt .
+  ?sub geo:hasGeometry [
+    geo:asWKT ?wkt
+  ] .
 }
 WHERE {
-    # Select subjects with schema:geo coordinates
-    ?sub schema:geo ?coord .
+  ?sub schema:geo ?coord .
 
-    # Filter: Only process if not already converted
-    FILTER NOT EXISTS { ?sub geo:hasGeometry ?existingGeom }
-
-    # Parse lat,lng string
-    BIND(REPLACE(STR(?coords), ",.*", "") AS ?latStr)
-    BIND(REPLACE(STR(?coords), ".*,", "") AS ?lngStr)
-
-    # Convert to numbers
-    BIND(xsd:double(?latStr) AS ?lat)
-    BIND(xsd:double(?lngStr) AS ?lng)
-
-    # Create WKT POINT (note: WKT uses lng,lat order, not lat,lng)
-    BIND(STRDT(
-        CONCAT("POINT(", STR(?lng), " ", STR(?lat), ")"),
-        geo:wktLiteral
-    ) AS ?wkt)
-
-    # Create unique geometry URI
-    BIND(IRI(CONCAT(STR(?sub), "_geometry")) AS ?geom)
+  BIND(
+    CONCAT(
+      "POINT(",
+      STRAFTER(?coord, ","),
+      " ",
+      STRBEFORE(?coord, ","),
+      ")"
+    ) AS ?wkt
+  )
 }

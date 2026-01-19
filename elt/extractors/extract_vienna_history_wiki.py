@@ -4,9 +4,12 @@ from pathlib import Path
 from rdflib import Graph, RDF, RDFS
 
 import sys
+
+from elt.utils.wiki import extract_page_name
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import BASE_URL, EXPORT_URL, RAW_DIR, CATEGORIES, RATE_LIMIT_DELAY, SWIVT
+from config import BASE_URL, EXPORT_URL, RAW_BASE, CATEGORIES, RATE_LIMIT_DELAY, SWIVT
 
 HEADERS = {
     "Content-Type": "application/x-www-form-urlencoded"
@@ -19,10 +22,10 @@ class ViennaHistoryWikiExtractor:
     def __init__(self):
         self.base_url = BASE_URL
         self.export_url = EXPORT_URL
-        self.raw_dir = RAW_DIR
+        self.raw_base = RAW_BASE
 
     @staticmethod
-    def fetch_pages(page_names, filename, backlinks=True):
+    def fetch_pages(path, page_names, filename, backlinks=True):
         payload = {
             "postform": "1",
             "pages": "\n".join(page_names),
@@ -34,28 +37,29 @@ class ViennaHistoryWikiExtractor:
         r = requests.post(EXPORT_URL, data=payload, headers=HEADERS)
         r.raise_for_status()
 
-        path = Path(RAW_DIR)
-        path.mkdir(parents=True, exist_ok=True)
+        base_path = Path(path)
+        base_path.mkdir(parents=True, exist_ok=True)
 
-        out = path / filename
+        out = base_path / filename
         out.write_bytes(r.content)
 
         print(f"Saved to {filename}")
 
         return out
 
-    def fetch_details(self, prefix, building_urls, batch_size=100):
+    def fetch_details(self, path, prefix, entity_urls, batch_size=100):
         all_files = []
 
-        for i in range(0, len(building_urls), batch_size):
-            batch = building_urls[i:i + batch_size]
+        for i in range(0, len(entity_urls), batch_size):
+            batch = entity_urls[i:i + batch_size]
 
             pages = [
-                url.split("/Special:ExportRDF/")[-1]
+                extract_page_name(url)
                 for url in batch
             ]
 
-            base_path = Path(RAW_DIR)
+            base_path = Path(path)
+            base_path.mkdir(parents=True, exist_ok=True)
             filename = f"{prefix}_{i}_{i + len(pages) - 1}.rdf"
             filepath = base_path / filename
 
@@ -68,7 +72,7 @@ class ViennaHistoryWikiExtractor:
             attempts = 0
             while not success and attempts < 5:
                 try:
-                    rdf_file = self.fetch_pages(pages, filename, backlinks=False)
+                    rdf_file = self.fetch_pages(path, pages, filename, backlinks=False)
                     all_files.append(rdf_file)
                     success = True
                 except Exception as e:
@@ -108,17 +112,17 @@ class ViennaHistoryWikiExtractor:
         return sorted(pages)
 
     def run_extraction(self):
-        buildings_file = self.fetch_pages(CATEGORIES["buildings"], "bauwerke_subcategories.rdf")
+        buildings_file = self.fetch_pages(self.raw_base, CATEGORIES["buildings"], "bauwerke_subcategories.rdf")
         buildings = self.extract_entities_from_category(buildings_file)
-        building_rdf_files = self.fetch_details("buildings", buildings)
+        building_rdf_files = self.fetch_details(self.raw_base, "buildings", buildings)
 
-        places_file = self.fetch_pages(CATEGORIES["places"], "topographische_objekte_subcategories.rdf")
+        places_file = self.fetch_pages(self.raw_base, CATEGORIES["places"], "topographische_objekte_subcategories.rdf")
         places = self.extract_entities_from_category(places_file)
-        places_rdf_files = self.fetch_details("places", places)
+        places_rdf_files = self.fetch_details(self.raw_base, "places", places)
 
-        events_file = self.fetch_pages(CATEGORIES["events"], "ereignisse_subcategories.rdf")
+        events_file = self.fetch_pages(self.raw_base, CATEGORIES["events"], "ereignisse_subcategories.rdf")
         events = self.extract_entities_from_category(events_file)
-        events_rdf_files = self.fetch_details("events", events)
+        events_rdf_files = self.fetch_details(self.raw_base, "events", events)
 
         print(f"Import complete")
 

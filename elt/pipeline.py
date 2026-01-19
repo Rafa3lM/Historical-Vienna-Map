@@ -1,9 +1,13 @@
 import time
 from pathlib import Path
-from loaders.graphdb_loader import GraphDBLoader
-from extractors.extract_osm_districts import OSMDistrictExtractor
-from extractors.extract_vienna_history_wiki import ViennaHistoryWikiExtractor
-from config import RAW_DIR, PROCESSED_DIR, GRAPHDB_SPARQL
+
+from elt.loaders.graphdb_loader import GraphDBLoader
+from elt.extractors.enrich_wikidata_monuments import WikidataMonumentEnricher
+from elt.extractors.extract_related_entities import RelatedEntitiesExtractor
+from elt.extractors.extract_osm_districts import OSMDistrictExtractor
+from elt.extractors.extract_vienna_history_wiki import ViennaHistoryWikiExtractor
+from config import RAW_BASE, RAW_RELATED, PROCESSED_DIR, GRAPHDB_SPARQL
+from elt.utils.query_loader import load_query
 
 
 class ViennaDataPipeline:
@@ -57,15 +61,46 @@ class ViennaDataPipeline:
                 print("Keeping existing data")
 
         # Load all raw RDF files
-        count = self.loader.load_directory(RAW_DIR, "**/*.rdf")
+        count = self.loader.load_directory(RAW_BASE, "**/*.rdf")
 
         print(f"\nLoaded {count} files into GraphDB")
         return count > 0
 
-    def step_4_load_districts(self):
+    @staticmethod
+    def step_4_extract_related_entities():
+        """Extract raw Vienna Wiki data"""
+        print("\n" + "=" * 60)
+        print("STEP 4: Fetch related entities (architects, famous inhabitants, named after)")
+        print("=" * 60)
+
+        extractor = RelatedEntitiesExtractor()
+        extractor.run_extraction()
+
+    def step_5_load_related_entities(self):
+        """Load related entities into GraphDB"""
+        print("\n" + "=" * 60)
+        print("STEP 5: Load Related Entities Raw Data into GraphDB")
+        print("=" * 60)
+
+        count = self.loader.load_directory(RAW_RELATED, "**/*.rdf")
+
+        print(f"\nLoaded {count} files into GraphDB")
+        return count > 0
+
+    @staticmethod
+    def step_6_enrich_data():
+        """Enrich all loaded Vienna History Wiki entities with cultural heritage IDs from Wikidata"""
+        print("\n" + "=" * 60)
+        print("STEP 6: Load cultural heritage IDs from Wikidata")
+        print("=" * 60)
+
+        monument_enricher = WikidataMonumentEnricher()
+        monument_enricher.enrich_with_wikidata_heritage_ids()
+
+    def step_7_load_districts(self):
         """Load district borders from into GraphDB"""
         print("\n" + "=" * 60)
-        print("STEP 4: Load District Borders into GraphDB")
+        print("STEP 7: Load District Borders into GraphDB")
         print("=" * 60)
 
         district_file = Path(PROCESSED_DIR) / "vienna_districts.ttl"
@@ -77,44 +112,48 @@ class ViennaDataPipeline:
         success = self.loader.load_file(str(district_file))
         return success
 
-    def step_5_transform_coordinates(self):
+    def step_8_transform_coordinates(self):
         """Transform coordinates to GeoSPARQL format"""
         print("\n" + "=" * 60)
-        print("STEP 5: Transform Coordinates to GeoSPARQL")
+        print("STEP 8: Transform Coordinates to GeoSPARQL")
         print("=" * 60)
 
         # Execute the geo transformation SPARQL update
-        sparql_file = Path("queries/insert_geo.sparql")
+        query = load_query("insert_geo.sparql")
+        # sparql_file = Path("queries/insert_geo.sparql")
 
-        if not sparql_file.exists():
-            print(f"SPARQL file not found: {sparql_file}")
-            return False
+        #if not sparql_file.exists():
+        #    print(f"SPARQL file not found: {sparql_file}")
+        #    return False
 
-        success = self.loader.execute_sparql_file(str(sparql_file))
-        return success
+        self.loader.execute_sparql_update(query)
+        # success = self.loader.execute_sparql_file(str(sparql_file))
 
-    def step_6_link_buildings_to_districts(self):
+    def step_9_link_buildings_to_districts(self):
         """Link buildings to their districts using spatial queries"""
         print("\n" + "=" * 60)
-        print("STEP 6: Link Buildings to Districts")
+        print("STEP 9: Link Buildings to Districts")
         print("=" * 60)
 
         # SPARQL INSERT query to link buildings to districts
-        sparql_file = Path("queries/link_districts.sparql")
+        query = load_query("link_districts.sparql")
+        self.loader.execute_sparql_update(query)
 
-        if not sparql_file.exists():
-            print(f"SPARQL file not found: {sparql_file}")
-            return False
+        #sparql_file = Path("queries/link_districts.sparql")
+
+        #if not sparql_file.exists():
+        #    print(f"SPARQL file not found: {sparql_file}")
+        #    return False
 
         print("Executing spatial join to link buildings to districts...")
-        success = self.loader.execute_sparql_file(str(sparql_file))
+        #success = self.loader.execute_sparql_file(str(sparql_file))
 
-        return success
+        #return success
 
-    def step_7_validate(self):
+    def step_10_validate(self):
         """Validate the final data"""
         print("\n" + "=" * 60)
-        print("STEP 7: Validate Data")
+        print("STEP 10: Validate Data")
         print("=" * 60)
 
         # Get statistics
@@ -123,10 +162,9 @@ class ViennaDataPipeline:
 
         # Count specific entities
         queries = {
-            "Buildings with geometry": """
-                SELECT (COUNT(DISTINCT ?b) AS ?count) WHERE {
-                    ?b <http://www.geschichtewiki.wien.gv.at/Special:URIResolver/Property-3A/Art_des_Bauwerks> ?type ;
-                       <http://www.opengis.net/ont/geosparql#hasGeometry> ?geom .
+            "Subjects with geometry": """
+                SELECT (COUNT(DISTINCT ?s) AS ?count) WHERE {
+                    ?s <http://www.opengis.net/ont/geosparql#hasGeometry> ?geom .
                 }
             """,
             "Districts": """
@@ -134,9 +172,9 @@ class ViennaDataPipeline:
                     ?d a <https://schema.org/AdministrativeArea> .
                 }
             """,
-            "Buildings linked to districts": """
-                SELECT (COUNT(DISTINCT ?b) AS ?count) WHERE {
-                    ?b <https://schema.org/containedInPlace> ?district .
+            "Subjects linked to districts": """
+                SELECT (COUNT(DISTINCT ?s) AS ?count) WHERE {
+                    ?s <https://schema.org/containedInPlace> ?district .
                 }
             """
         }
@@ -172,10 +210,13 @@ class ViennaDataPipeline:
             ("Extract Vienna Wiki Data", self.step_1_extract_vienna_wiki),
             ("Extract District Borders", self.step_2_extract_osm_districts()),
             ("Load Raw Data", self.step_3_load_raw_data),
-            ("Load Districts", self.step_4_load_districts),
-            ("Transform Coordinates", self.step_5_transform_coordinates),
-            ("Link Buildings to Districts", self.step_6_link_buildings_to_districts),
-            ("Validate Data", self.step_7_validate),
+            ("Load Raw Data", self.step_4_extract_related_entities()),
+            ("Load Raw Data", self.step_5_load_related_entities()),
+            ("Load Raw Data", self.step_6_enrich_data()),
+            ("Load Districts", self.step_7_load_districts),
+            ("Transform Coordinates", self.step_8_transform_coordinates),
+            ("Link Buildings to Districts", self.step_9_link_buildings_to_districts),
+            ("Validate Data", self.step_10_validate),
         ]
 
         results = {}
@@ -227,10 +268,12 @@ if __name__ == "__main__":
     if args.skip_extract:
         print("Skipping extraction - using existing data")
         # Skip to step 3
-        #pipeline.step_3_load_raw_data()
-        pipeline.step_4_load_districts()
-        #pipeline.step_5_transform_coordinates()
-        pipeline.step_6_link_buildings_to_districts()
-        pipeline.step_7_validate()
+        pipeline.step_3_load_raw_data()
+        pipeline.step_5_load_related_entities()
+        pipeline.step_6_enrich_data()
+        pipeline.step_7_load_districts()
+        pipeline.step_8_transform_coordinates()
+        pipeline.step_9_link_buildings_to_districts()
+        pipeline.step_10_validate()
     else:
         pipeline.run_full_pipeline()

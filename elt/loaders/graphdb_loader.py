@@ -84,7 +84,7 @@ class GraphDBLoader:
             else:
                 failed_files.append(filepath)
 
-            # Rate limiting - be nice to GraphDB
+            # Rate limiting
             if i < len(files):
                 time.sleep(0.5)
 
@@ -196,7 +196,6 @@ class GraphDBLoader:
             return False
 
 
-# Test when run directly
 if __name__ == "__main__":
     loader = GraphDBLoader()
 
