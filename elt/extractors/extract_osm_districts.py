@@ -4,6 +4,7 @@ from rdflib.namespace import RDF, RDFS
 from pathlib import Path
 
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import OSM_OVERPASS_URL, GEO, SCHEMA, PROCESSED_DIR
@@ -63,25 +64,12 @@ class OSMDistrictExtractor:
             return None
 
     @staticmethod
-    def polygon_to_wkt(coordinates: list) -> str:
-        """Convert list of [lon, lat] coordinates to WKT POLYGON"""
-        if not coordinates:
-            return None
-
-        # Ensure polygon is closed (first point == last point)
-        if coordinates[0] != coordinates[-1]:
-            coordinates.append(coordinates[0])
-
-        coords_str = ", ".join([f"{lon} {lat}" for lon, lat in coordinates])
-        return f"POLYGON(({coords_str}))"
-
-    @staticmethod
-    def multipolygon_to_wkt(members: list) -> str:
-        """Convert OSM relation members to WKT MULTIPOLYGON or POLYGON"""
-        outer_rings = []
+    def convert_to_wkt_polygon(members: list) -> str:
+        """Convert OSM relation members to WKT POLYGON"""
+        lines = []
 
         for member in members:
-            # Only process outer rings (boundaries)
+            # Only process (boundaries)
             if member.get('role') != 'outer':
                 continue
 
@@ -89,27 +77,48 @@ class OSMDistrictExtractor:
             if not geometry:
                 continue
 
-            # Extract coordinates
             coords = [(node['lon'], node['lat']) for node in geometry]
+            if len(coords) >= 2:
+                lines.append(coords)
 
-            if not coords:
-                continue
-
-            # Close polygon if needed
-            if coords[0] != coords[-1]:
-                coords.append(coords[0])
-
-            coords_str = ", ".join([f"{lon} {lat}" for lon, lat in coords])
-            outer_rings.append(f"(({coords_str}))")
-
-        if not outer_rings:
+        if not lines:
             return None
 
-        # Single polygon or multipolygon?
-        if len(outer_rings) == 1:
-            return f"POLYGON{outer_rings[0]}"
-        else:
-            return f"MULTIPOLYGON({', '.join(outer_rings)})"
+        ring = lines.pop(0)
+
+        while lines:
+            merged = False
+
+            for i, line in enumerate(lines):
+                # match ring end -> line start
+                if ring[-1] == line[0]:
+                    ring.extend(line[1:])
+                # ring end -> line end
+                elif ring[-1] == line[-1]:
+                    ring.extend(reversed(line[:-1]))
+                # ring start -> line end
+                elif ring[0] == line[-1]:
+                    ring = line[:-1] + ring
+                # ring start -> line start
+                elif ring[0] == line[0]:
+                    ring = list(reversed(line[1:])) + ring
+                else:
+                    continue
+
+                lines.pop(i)
+                merged = True
+                break
+
+            if not merged:
+                raise ValueError("Could not merge all outer ways into a single polygon")
+
+        # 3. Close polygon if needed
+        if ring[0] != ring[-1]:
+            ring.append(ring[0])
+
+        # 4. Convert to WKT
+        coords_str = ", ".join(f"{lon} {lat}" for lon, lat in ring)
+        return f"POLYGON(({coords_str}))"
 
     def convert_to_rdf(self, osm_data: dict) -> Graph:
         """Convert OSM district data to RDF graph"""
@@ -171,7 +180,7 @@ class OSMDistrictExtractor:
             try:
                 members = element.get('members', [])
                 if members:
-                    wkt = self.multipolygon_to_wkt(members)
+                    wkt = self.convert_to_wkt_polygon(members)
 
                     if wkt:
                         # Create geometry node
