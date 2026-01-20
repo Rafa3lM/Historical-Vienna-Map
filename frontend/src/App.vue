@@ -583,7 +583,7 @@ async function loadEntities(lat: number, lng: number) {
       paramsSerializer: params => qs.stringify(params, {arrayFormat: "repeat"})
     });
 
-    resultsCount.value = res.data.count;
+    resultsCount.value = Number(res.data.count);
 
     res.data.entities.forEach(entity => {
       const icon = getIconForEntity(entity.type);
