@@ -161,6 +161,127 @@ def get_entities_in_area(
     }
 
 
+@app.get("/entity-geo/{uri:path}")
+def get_geo_entity(uri: str) -> dict:
+    """
+    Get detailed information about an entity.
+    """
+
+    query = SparqlQueries.get_geo_entity_details(uri)
+    results = execute_sparql(query)
+
+    if not results["results"]["bindings"]:
+        raise HTTPException(status_code=404, detail="Entity not found")
+
+    # Parse first result
+    res = results["results"]["bindings"][0]
+
+    details = {
+        "uri": uri,
+        "label": res.get("label", {}).get("value"),
+        "buildingType": res.get("buildingType", {}).get("value"),
+        "eventType": res.get("eventType", {}).get("value"),
+        "placeType": res.get("placeType", {}).get("value"),
+        "wikiPage": res.get("wikiPage", {}).get("value"),
+    }
+
+    # Temporal info
+    if "startDate" in res:
+        details["startDate"] = res["startDate"]["value"]
+    if "endDate" in res:
+        details["endDate"] = res["endDate"]["value"]
+    if "historical" in res:
+        details["historical"] = res["historical"]["value"] == "true"
+
+    # Location
+    if "wkt" in res:
+        lat, lng = wkt_to_latlng(res["wkt"]["value"])
+        details["coordinates"] = {"lat": lat, "lng": lng}
+    if "address" in res:
+        details["address"] = res["address"]["value"]
+    if "districtName" in res:
+        details["district"] = res["districtName"]["value"]
+
+    # Monument protection database IDs
+    if "herisId" in res:
+        details["herisId"] = res["herisId"]["value"]
+    if "cultId" in res:
+        details["cultId"] = res["cultId"]["value"]
+
+    # People
+    architects = collect_values(results["results"]["bindings"], "architect")
+    if architects:
+        details["architects"] = architects
+
+    named_after = collect_values(results["results"]["bindings"], "namedAfter")
+    if named_after:
+        details["namedAfter"] = named_after
+
+    famous_inhabitant = collect_values(results["results"]["bindings"], "famousInhabitant")
+    if famous_inhabitant:
+        details["famousInhabitants"] = famous_inhabitant
+
+    # Events
+    events = collect_values(results["results"]["bindings"], "event")
+    if events:
+        details["events"] = events
+
+    # Media
+    if "image" in res:
+        details["image"] = res["image"]["value"]
+
+    return details
+
+
+@app.get("/entity-details/{uri:path}")
+def get_info_entity(uri: str) -> dict:
+    """
+    Get detailed information about an entity.
+    """
+
+    query = SparqlQueries.get_info_entity_details(uri)
+    results = execute_sparql(query)
+
+    if not results["results"]["bindings"]:
+        raise HTTPException(status_code=404, detail="Entity not found")
+
+    # Parse first result
+    res = results["results"]["bindings"][0]
+
+    details = {
+        "uri": uri,
+        "label": res.get("label", {}).get("value"),
+        "wikiPage": res.get("wikiPage", {}).get("value"),
+    }
+
+    if "birthDate" in res:
+        details["birthDate"] = res["birthDate"]["value"]
+    if "deathDate" in res:
+        details["deathDate"] = res["deathDate"]["value"]
+    if "birthPlace" in res:
+        details["birthPlace"] = res["birthPlace"]["value"]
+    if "deathPlace" in res:
+        details["deathPlace"] = res["deathPlace"]["value"]
+    if "gender" in res:
+        details["gender"] = res["gender"]["value"]
+    if "image" in res:
+        details["image"] = res["image"]["value"]
+
+    resident_of = collect_values(results["results"]["bindings"], "residentOf")
+    if resident_of:
+        details["residentOf"] = resident_of
+
+    architect_of = collect_values(results["results"]["bindings"], "architectOf")
+    if architect_of:
+        details["architectOf"] = architect_of
+
+    named_after = collect_values(results["results"]["bindings"], "namedAfter")
+    if resident_of:
+        details["namedAfter"] = named_after
+
+    return details
+
+
 if __name__ == "__main__":
     import uvicorn
 
