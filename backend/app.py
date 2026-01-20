@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Query, HTTPException
 from SPARQLWrapper import SPARQLWrapper, JSON
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,19 +9,19 @@ app = FastAPI(title="Vienna Historical Map API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # Vite / Vue
+        "http://localhost:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-GRAPDB_URL = "http://localhost:7200/repositories/vienna"
+GRAPHDB_URL = os.getenv("GRAPHDB_URL", "http://localhost:7200/repositories/vienna")
 
 
 def execute_sparql(query: str) -> dict:
     """Execute SPARQL query and return results"""
-    sparql = SPARQLWrapper(GRAPDB_URL)
+    sparql = SPARQLWrapper(GRAPHDB_URL)
     sparql.setQuery(query)
     sparql.setReturnFormat(JSON)
 
@@ -119,7 +120,6 @@ def get_entities_in_area(
         only_monuments=only_monuments,
     )
 
-    print(query)
     results = execute_sparql(query)
 
     # Parse results
