@@ -208,11 +208,11 @@ class ViennaDataPipeline:
 
         steps = [
             ("Extract Vienna Wiki Data", self.step_1_extract_vienna_wiki),
-            ("Extract District Borders", self.step_2_extract_osm_districts()),
+            ("Extract District Borders", self.step_2_extract_osm_districts),
             ("Load Raw Data", self.step_3_load_raw_data),
-            ("Load Raw Data", self.step_4_extract_related_entities()),
-            ("Load Raw Data", self.step_5_load_related_entities()),
-            ("Load Raw Data", self.step_6_enrich_data()),
+            ("Extract Related Entities", self.step_4_extract_related_entities),
+            ("Load Related Entities Raw Data", self.step_5_load_related_entities),
+            ("Enrich Data", self.step_6_enrich_data),
             ("Load Districts", self.step_7_load_districts),
             ("Transform Coordinates", self.step_8_transform_coordinates),
             ("Link Buildings to Districts", self.step_9_link_buildings_to_districts),
