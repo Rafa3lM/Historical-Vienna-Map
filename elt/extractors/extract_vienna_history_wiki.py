@@ -105,7 +105,12 @@ class ViennaHistoryWikiExtractor:
 
             defined_by = g.value(subj, RDFS.isDefinedBy)
             if defined_by:
-                pages.add(str(defined_by))
+                # ExportRDF fails for -28 / -29 encoded parentheses.
+                # Replace them with literal '(' and ')'.
+                pages.add(str(defined_by)
+                          .replace("-28", "(")
+                          .replace("-29", ")")
+                          )
 
         print(f"Found {len(pages)} unique RDF pages")
 
