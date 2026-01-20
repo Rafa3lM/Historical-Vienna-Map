@@ -19,10 +19,10 @@ os.makedirs(RAW_RELATED, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 # === GraphDB Configuration ===
-GRAPHDB_URL = "http://localhost:7200"
-GRAPHDB_REPO = "vienna"
-GRAPHDB_SPARQL = f"{GRAPHDB_URL}/repositories/{GRAPHDB_REPO}"
-GRAPHDB_UPDATE = f"{GRAPHDB_URL}/repositories/{GRAPHDB_REPO}/statements"
+GRAPHDB_URL = os.getenv("GRAPHDB_URL", "http://localhost:7200")
+GRAPHDB_REPO = os.getenv("GRAPHDB_REPO", "vienna")
+GRAPHDB_SPARQL = os.getenv("GRAPHDB_SPARQL", f"{GRAPHDB_URL}/repositories/{GRAPHDB_REPO}")
+GRAPHDB_UPDATE = f"{GRAPHDB_SPARQL}/statements"
 
 # === Categories to Extract ===
 CATEGORIES = {
@@ -102,14 +102,6 @@ REQUIRED_PROPERTIES = {
 # === OSM Configuration ===
 # Vienna district borders from Overpass API
 OSM_OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-OSM_QUERY_VIENNA_DISTRICTS = """
-[out:json];
-area["name"="Wien"]["admin_level"="4"]->.vienna;
-(
-  relation["admin_level"="9"](area.vienna);
-);
-out geom;
-"""
 
 # === Namespaces ===
 SCHEMA = Namespace("https://schema.org/")
@@ -122,6 +114,4 @@ PROPERTY = Namespace("http://www.geschichtewiki.wien.gv.at/Special:URIResolver/P
 WIKI = Namespace("http://www.geschichtewiki.wien.gv.at/Special:URIResolver/")
 
 # === Pipeline Settings ===
-BATCH_SIZE = 50
-MAX_RETRIES = 3
 RATE_LIMIT_DELAY = 1
