@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type {GeoEntityDetails} from "../types/Entity.ts";
 
-const props = defineProps<{
+defineProps<{
   entityDetails: GeoEntityDetails;
   loadingDetails: boolean;
 }>();
@@ -159,7 +159,7 @@ function loadDetails(uri: string) {
         </div>
       </div>
     </div>
-    <div v-else>
+    <div v-else class="details-content">
       <h3>{{ formatType(entityDetails.uri) }}</h3>
       <div>
         No details available
