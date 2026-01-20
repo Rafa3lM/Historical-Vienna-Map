@@ -75,6 +75,7 @@ class ViennaDataPipeline:
 
         extractor = RelatedEntitiesExtractor()
         extractor.run_extraction()
+        return True
 
     def step_5_load_related_entities(self):
         """Load related entities into GraphDB"""
@@ -96,6 +97,7 @@ class ViennaDataPipeline:
 
         monument_enricher = WikidataMonumentEnricher()
         monument_enricher.enrich_with_wikidata_heritage_ids()
+        return True
 
     def step_7_load_districts(self):
         """Load district borders from into GraphDB"""
@@ -120,14 +122,9 @@ class ViennaDataPipeline:
 
         # Execute the geo transformation SPARQL update
         query = load_query("insert_geo.sparql")
-        # sparql_file = Path("queries/insert_geo.sparql")
-
-        #if not sparql_file.exists():
-        #    print(f"SPARQL file not found: {sparql_file}")
-        #    return False
 
         self.loader.execute_sparql_update(query)
-        # success = self.loader.execute_sparql_file(str(sparql_file))
+        return True
 
     def step_9_link_buildings_to_districts(self):
         """Link buildings to their districts using spatial queries"""
@@ -139,16 +136,9 @@ class ViennaDataPipeline:
         query = load_query("link_districts.sparql")
         self.loader.execute_sparql_update(query)
 
-        #sparql_file = Path("queries/link_districts.sparql")
-
-        #if not sparql_file.exists():
-        #    print(f"SPARQL file not found: {sparql_file}")
-        #    return False
-
         print("Executing spatial join to link buildings to districts...")
-        #success = self.loader.execute_sparql_file(str(sparql_file))
 
-        #return success
+        return True
 
     def step_10_validate(self):
         """Validate the final data"""
@@ -169,7 +159,9 @@ class ViennaDataPipeline:
             """,
             "Districts": """
                 SELECT (COUNT(DISTINCT ?d) AS ?count) WHERE {
-                    ?d a <https://schema.org/AdministrativeArea> .
+                    ?d a <https://schema.org/AdministrativeArea> ;
+                       <https://schema.org/identifier> ?i .
+                    FILTER(xsd:integer(?i) <= 23)
                 }
             """,
             "Subjects linked to districts": """
