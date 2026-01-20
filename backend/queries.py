@@ -20,6 +20,11 @@ class SparqlQueries:
             event_types: Optional[List[str]] = None,
             place_types: Optional[List[str]] = None,
             only_historical: bool = False,
+            has_artists: bool = False,
+            related_to: bool = False,
+            named_after: bool = False,
+            only_monuments: bool = False,
+            has_events: bool = False,
     ) -> str:
         """
         Main spatial-temporal query for buildings, events, and places
@@ -36,7 +41,6 @@ class SparqlQueries:
         """
 
         # Build entity type filter
-        # TODO do not allow empty types?
         types_empty = (not building_types or len(building_types) == 0) and (
                 not event_types or len(event_types) == 0) and (not place_types or len(place_types) == 0)
         type_filters = []
@@ -49,7 +53,7 @@ class SparqlQueries:
 
         type_union = " UNION ".join([f"{{ {f} }}" for f in type_filters]) if type_filters else "{ ?sub a ?anyType }"
 
-        # Build type filter
+        # Subtype filter
         types = []
         if building_types:
             types.extend(building_types)
@@ -70,6 +74,28 @@ class SparqlQueries:
         historical_filter = ""
         if only_historical:
             historical_filter = "FILTER(?historical = true)"
+
+        has_artists_filter = ""
+        if has_artists:
+            has_artists_filter = "?sub schema:artist ?artist ."
+
+        related_to_filter = ""
+        if related_to:
+            related_to_filter = "?sub schema:relatedTo ?related ."
+
+        named_after_filter = ""
+        if named_after:
+            named_after_filter = "?sub property:Benannt_nach ?named_after ."
+
+        events_filter = ""
+        if has_events:
+            events_filter = ("?sub schema:relatedLink ?event ."
+                             "?event property:Art_des_Ereignisses ?anyEventType .")
+
+        monuments_filter = ""
+        if only_monuments:
+            monuments_filter = ("?sub property:WikidataHERISID ?herisId ;"
+                                "property:WikidataCulturalHeritageID ?cultId .")
 
         query = f"""
         PREFIX geo: <http://www.opengis.net/ont/geosparql#>
@@ -95,6 +121,12 @@ class SparqlQueries:
             # Required properties
             ?sub rdfs:label ?label ;
                  geo:hasGeometry/geo:asWKT ?wkt .
+                 
+            {has_artists_filter}
+            {related_to_filter}
+            {named_after_filter}
+            {events_filter}
+            {monuments_filter}
             
             # Optional properties
             OPTIONAL {{ ?sub property:Historisch ?historical }}.
@@ -128,6 +160,136 @@ class SparqlQueries:
             )
         }}
         ORDER BY ?label
-        LIMIT 1000
+        LIMIT 10000
         """
+        return query
+
+    @staticmethod
+    def get_geo_entity_details(entity_uri: str) -> str:
+        """
+        Get detailed information about a geo-locatable entity
+        """
+
+        query = f"""
+        PREFIX property: <http://www.geschichtewiki.wien.gv.at/Special:URIResolver/Property-3A>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX schema: <https://schema.org/>
+        PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+        PREFIX swivt: <http://semantic-mediawiki.org/swivt/1.0#>
+
+        SELECT DISTINCT
+            ?label
+            ?buildingType
+            ?eventType
+            ?placeType
+            ?startDate
+            ?endDate
+            ?historical
+            ?wkt
+            ?address
+            ?architect
+            ?namedAfter
+            ?famousInhabitant
+            ?event
+            ?wikiPage
+            ?district
+            ?districtName
+            ?image
+            ?herisId
+            ?cultId
+        WHERE {{
+            BIND(<{entity_uri}> AS ?entity)
+
+            # Basic info
+            ?entity rdfs:label ?label .
+            OPTIONAL {{ ?entity property:Art_des_Bauwerks ?buildingType }}.
+            OPTIONAL {{ ?entity property:Art_des_Ereignisses ?eventType }}.
+            OPTIONAL {{ ?entity property:Art_des_Objekts ?placeType }}.
+
+            # Temporal
+            OPTIONAL {{ ?entity schema:startDate ?startDate }}.
+            OPTIONAL {{ ?entity schema:endDate ?endDate }}.
+            OPTIONAL {{ ?entity property:Historisch ?historical }}.
+
+            # Location
+            OPTIONAL {{ ?entity geo:hasGeometry/geo:asWKT ?wkt }}.
+            OPTIONAL {{ ?entity schema:address ?address }}.
+            OPTIONAL {{ 
+                ?entity schema:containedInPlace ?district .
+                ?district rdfs:label ?districtName .
+            }}.
+
+            # People & Attribution
+            OPTIONAL {{ ?entity schema:artist ?architect }}.
+            OPTIONAL {{ ?entity property:Benannt_nach ?namedAfter }}.
+            OPTIONAL {{ ?entity schema:relatedTo ?famousInhabitant }}.
+            
+            # Related Events
+            OPTIONAL {{ 
+                ?entity schema:relatedLink ?event .
+                ?event property:Art_des_Ereignisses ?anyEventType .
+            }}
+            
+            # Monument Protection
+            OPTIONAL {{ ?entity property:WikidataCulturalHeritageID ?cultId . }}
+            OPTIONAL {{ ?entity property:WikidataHERISID ?herisId . }}
+
+            # Links
+            OPTIONAL {{ ?entity swivt:page ?wikiPage }}.
+            OPTIONAL {{ ?entity schema:image ?image }}.
+        }}
+        """
+        return query
+
+    @staticmethod
+    def get_info_entity_details(entity_uri: str) -> str:
+        """
+        Get detailed information about an entity
+        """
+
+        query = f"""
+        PREFIX property: <http://www.geschichtewiki.wien.gv.at/Special:URIResolver/Property-3A>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX schema: <https://schema.org/>
+        PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+        PREFIX swivt: <http://semantic-mediawiki.org/swivt/1.0#>
+        PREFIX wiki: <http://www.geschichtewiki.wien.gv.at/Special:URIResolver/>
+        
+        SELECT DISTINCT 
+            ?label
+            ?wikiPage
+            ?image
+            ?birthDate
+            ?birthPlace
+            ?deathDate
+            ?deathPlace
+            ?residentOf
+            ?architectOf
+            ?namedAfter
+            ?gender
+        WHERE {{
+            BIND(<{entity_uri}> AS ?entity)
+
+            # Basic info
+            OPTIONAL {{ ?entity rdfs:label ?label . }}
+            OPTIONAL {{ ?entity swivt:page ?wikiPage . }}
+            
+            OPTIONAL {{ ?entity schema:image ?image . }}
+            
+            OPTIONAL {{ ?entity schema:birthData ?birthDate .
+                        FILTER(DATATYPE(?birthDate) = xsd:date) }}
+            OPTIONAL {{ ?entity wiki:Property-3AGND_Geburtsort ?birthPlace . }}
+            
+            OPTIONAL {{ ?entity schema:deathDate ?deathDate . 
+                        FILTER(DATATYPE(?deathDate) = xsd:date) }}
+            OPTIONAL {{ ?entity wiki:Property-3AGND_Sterbeort ?deathPlace . }}
+            
+            OPTIONAL {{ ?entity schema:relatedTo ?residentOf . }}
+            OPTIONAL {{ ?architectOf schema:artist ?entity . }}
+            OPTIONAL {{ ?entity property:Benannt_nach ?namedAfter . }}
+            
+            OPTIONAL {{ ?entity schema:gender ?gender . }}
+        }}
+        """
+
         return query
