@@ -12,54 +12,71 @@
       <!-- Time Range Slider -->
       <div class="control-section">
         <label class="section-label">
-          Time Range: {{ filters.fromYear }} - {{ filters.toYear }}
+          Time Range
         </label>
-        <div class="range-slider">
-          <input
-              v-model.number="filters.fromYear"
-              type="range"
-              min="0"
-              max="2026"
-              class="slider slider-from"
-          />
-          <input
-              v-model.number="filters.toYear"
-              type="range"
-              min="0"
-              max="2026"
-              class="slider slider-to"
-          />
-        </div>
-        <div class="range-labels">
-          <span>{{ filters.fromYear }}</span>
-          <span>{{ filters.toYear }}</span>
+
+        <TimeRangeSlider
+            v-model:fromYear="filters.fromYear"
+            v-model:toYear="filters.toYear"
+        />
+
+        <!-- Manual input -->
+        <div class="range-inputs">
+          <div class="range-input">
+            <label>From</label>
+            <input
+                type="number"
+                :min="0"
+                :max="currentYear"
+                v-model.number="filters.fromYear"
+                @blur="validateRange"
+            />
+          </div>
+
+          <div class="range-input">
+            <label>To</label>
+            <input
+                type="number"
+                :min="0"
+                :max="currentYear"
+                v-model.number="filters.toYear"
+                @blur="validateRange"
+            />
+          </div>
         </div>
       </div>
 
       <!-- Radius Selection -->
       <div class="control-section">
         <label class="section-label">
-          Search Radius: {{ filters.radius }}m
+          Search Radius
+          <span class="radius-value">{{ formattedRadius }}</span>
         </label>
-        <input
-            v-model.number="filters.radius"
-            type="range"
-            min="25"
-            max="10000"
-            step="25"
-            class="slider"
-        />
-        <div class="range-labels">
-          <span>25m</span>
-          <span>10km</span>
+
+        <div class="radius-slider-wrapper">
+          <input
+              v-model.number="filters.radius"
+              type="range"
+              min="50"
+              max="15000"
+              step="25"
+              class="radius-slider"
+          />
         </div>
+
+        <div class="range-labels">
+          <span>50 m</span>
+          <span>15 km</span>
+        </div>
+
         <p v-if="filters.radius >= 3000" class="warning-text">
-          Large radius may affect performance
+          Large radius may impact performance
         </p>
       </div>
 
-      <!-- Historical Toggle -->
+      <!-- Advanced Filters -->
       <div class="control-section">
+        <label class="section-label">Advanced Filters</label>
         <label class="checkbox-label">
           <input
               v-model="filters.onlyHistorical"
@@ -67,26 +84,21 @@
           />
           <span>Show only demolished buildings</span>
         </label>
-      </div>
-
-      <!-- Advanced Filters -->
-      <div class="control-section">
-        <label class="section-label">Advanced Filters</label>
         <label class="checkbox-label">
           <input v-model="filters.onlyWithArchitect" type="checkbox"/>
           <span>Only buildings with known architect</span>
         </label>
         <label class="checkbox-label">
-          <input v-model="filters.onlyWithInhabitants" type="checkbox"/>
-          <span>Only with famous inhabitants</span>
+          <input v-model="filters.onlyWithResidents" type="checkbox"/>
+          <span>Only with famous residents</span>
         </label>
         <label class="checkbox-label">
           <input v-model="filters.onlyNamed" type="checkbox"/>
           <span>Only named after someone/something</span>
         </label>
         <label class="checkbox-label">
-          <input v-model="filters.onlyWithEvents" type="checkbox"/>
-          <span>Only with linked events</span>
+          <input v-model="filters.onlyMonuments" type="checkbox"/>
+          <span>Denkmalschutz (monument protection)</span>
         </label>
       </div>
 
@@ -203,30 +215,6 @@
         </div>
       </div>
 
-      <!-- Search (placeholder) -->
-      <div class="control-section">
-        <label class="section-label">Search</label>
-        <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search by name..."
-            class="search-input"
-            disabled
-        />
-        <p class="help-text">Coming soon</p>
-      </div>
-
-      <!-- District Filter (placeholder) -->
-      <div class="control-section">
-        <label class="section-label">District</label>
-        <select v-model="filters.district" class="district-select" disabled>
-          <option value="">All districts</option>
-          <option value="1">1. Innere Stadt</option>
-          <option value="2">2. Leopoldstadt</option>
-        </select>
-        <p class="help-text">Coming soon</p>
-      </div>
-
       <button @click="applyFilters" class="apply-button">
         Apply Filters
       </button>
@@ -244,112 +232,23 @@
     </div>
 
     <!-- Entity Details Panel -->
-    <div v-if="selectedEntity" class="details-panel">
-      <button @click="closeDetails" class="close-button">×</button>
+    <GeoEntityPanel
+        v-if="entityDetails"
+        :entity-details="entityDetails"
+        :loading-details="loadingDetails"
+        @close="closeGeoPanel"
+        @open-info="loadInfoEntityDetails"
+        @open-geo="loadGeoEntityDetails"
+    />
 
-      <div class="details-content">
-        <h3>{{ selectedEntity.label }}</h3>
-
-        <div v-if="loadingDetails" class="details-loading">
-          <div class="spinner-small"></div>
-          Loading details...
-        </div>
-
-        <div v-else-if="entityDetails">
-          <!-- Image -->
-          <!-- Image -->
-          <div v-if="entityDetails.image" class="detail-item">
-            <img
-                :src="entityDetails.image"
-                :alt="entityDetails.label"
-                loading="lazy"
-                class="entity-image"
-            />
-          </div>
-
-          <!-- Type -->
-          <div v-if="entityDetails.buildingType || entityDetails.eventType || entityDetails.placeType"
-               class="detail-item">
-            <strong>Type:</strong>
-            <span>{{
-                formatType(entityDetails.buildingType || entityDetails.eventType || entityDetails.placeType || "")
-              }}</span>
-          </div>
-
-          <!-- Time Period -->
-          <div v-if="entityDetails.startDate || entityDetails.endDate" class="detail-item">
-            <strong>Period:</strong>
-            <span>
-              {{ entityDetails.startDate || '?' }} - {{ entityDetails.endDate || 'present' }}
-            </span>
-          </div>
-
-          <!-- Status (only for buildings/places, not events) -->
-          <div v-if="entityDetails.historical !== undefined && !entityDetails.eventType" class="detail-item">
-            <strong>Status:</strong>
-            <span :class="{ 'historical-badge': entityDetails.historical }">
-              {{ entityDetails.historical ? 'Demolished' : 'Existing' }}
-            </span>
-          </div>
-
-          <!-- District -->
-          <div v-if="entityDetails.district" class="detail-item">
-            <strong>District:</strong>
-            <span>{{ entityDetails.district }}</span>
-          </div>
-
-          <!-- Address -->
-          <div v-if="entityDetails.address" class="detail-item">
-            <strong>Address:</strong>
-            <span>{{ entityDetails.address }}</span>
-          </div>
-
-          <!-- Architects -->
-          <div v-if="entityDetails.architects" class="detail-item">
-            <strong>Architect(s):</strong>
-            <span>{{ formatUriList(entityDetails.architects) }}</span>
-          </div>
-
-          <!-- Named after -->
-          <div v-if="entityDetails.namedAfter" class="detail-item">
-            <strong>Named After:</strong>
-            <span>{{ formatUriList(entityDetails.namedAfter) }}</span>
-          </div>
-
-          <!-- Famous Inhabitants -->
-          <div v-if="entityDetails.famousInhabitants" class="detail-item">
-            <strong>Famous Inhabitant(s):</strong>
-            <span>{{ formatUriList(entityDetails.famousInhabitants) }}</span>
-          </div>
-
-          <!-- Events -->
-          <div v-if="entityDetails.events" class="detail-item">
-            <strong>Events: </strong>
-            <span>{{ formatUriList(entityDetails.events) }}</span>
-          </div>
-
-          <!-- Coordinates -->
-          <div v-if="entityDetails.coordinates" class="detail-item">
-            <strong>Coordinates:</strong>
-            <span class="coordinates">
-              {{ entityDetails.coordinates.lat.toFixed(4) }},
-              {{ entityDetails.coordinates.lng.toFixed(4) }}
-            </span>
-          </div>
-
-          <!-- Wiki Link -->
-          <div v-if="entityDetails.wikiPage" class="detail-item">
-            <a
-                :href="entityDetails.wikiPage"
-                target="_blank"
-                class="wiki-link"
-            >
-              View on Wien Geschichte Wiki →
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
+    <InfoEntityPanel
+        v-if="selectedInfoEntity"
+        :entity-details="selectedInfoEntity"
+        :loading-details="loadingInfoDetails"
+        @close="closeInfoPanel"
+        @open-info="loadInfoEntityDetails"
+        @open-geo="loadGeoEntityDetails"
+    />
 
     <!-- Loading Overlay -->
     <div v-if="loading" class="loading-overlay">
@@ -369,19 +268,23 @@
 
 <script setup lang="ts">
 import qs from "qs";
-import {onMounted, reactive, ref} from "vue";
+import {computed, onMounted, reactive, ref} from "vue";
 import L from "leaflet";
 import {api} from "./services/api";
-import type {Entities, Entity, EntityDetails} from "./types/Entity";
+import type {Entities, Entity, GeoEntityDetails, InfoEntityDetails} from "./types/Entity";
+import TimeRangeSlider from "./components/TimeRangeSlider.vue";
+import InfoEntityPanel from "./components/InfoEntityPanel.vue";
+import GeoEntityPanel from "./components/GeoEntityPanel.vue";
 
 // State
 const loading = ref(false);
 const loadingDetails = ref(false);
+const loadingInfoDetails = ref(false);
 const clickedOnce = ref(false);
 const resultsCount = ref<number | null>(null);
-const searchQuery = ref("");
 const selectedEntity = ref<Entity | null>(null);
-const entityDetails = ref<EntityDetails | null>(null);
+const selectedInfoEntity = ref<InfoEntityDetails | null>(null);
+const entityDetails = ref<GeoEntityDetails | null>(null);
 
 // Building types from Vienna Wiki
 const buildingTypes = [
@@ -442,15 +345,17 @@ const toggleAll = reactive({
   places: false,
 })
 
+const currentYear = new Date().getFullYear();
+
 // Filters
 const filters = reactive({
   fromYear: 0,
-  toYear: 2026,
-  radius: 1000,
+  toYear: currentYear,
+  radius: 750,
   onlyHistorical: false,
   onlyWithArchitect: false,
-  onlyWithInhabitants: false,
-  onlyWithEvents: false,
+  onlyWithResidents: false,
+  onlyMonuments: false,
   onlyNamed: false,
   buildingTypes: buildingTypes.map(t => t.value),
   eventTypes: [] as string[],
@@ -496,6 +401,26 @@ const defaultIcon = L.divIcon({
 });
 
 // Functions
+const formattedRadius = computed(() => {
+  return filters.radius >= 1000
+      ? `${(filters.radius / 1000).toFixed(1)} km`
+      : `${filters.radius} m`;
+});
+
+function validateRange() {
+  if (filters.fromYear < 0) {
+    filters.fromYear = 0;
+  }
+
+  if (filters.toYear > currentYear) {
+    filters.toYear = currentYear;
+  }
+
+  if (filters.fromYear >= filters.toYear) {
+    filters.fromYear = filters.toYear - 1;
+  }
+}
+
 function toggleExpanded(category: 'buildings' | 'events' | 'places') {
   expandedCategories[category] = !expandedCategories[category];
 }
@@ -531,7 +456,7 @@ function toggleType(category: 'buildings' | 'events' | 'places') {
   if (category === 'buildings') {
     toggleAll.buildings = filters.buildingTypes.length > 0;
   }
-  if (category === 'events'){
+  if (category === 'events') {
     toggleAll.events = filters.eventTypes.length > 0;
   }
   if (category === 'places') {
@@ -561,27 +486,12 @@ function getIconForEntity(typeUri: string): L.DivIcon {
   return defaultIcon;
 }
 
-function formatType(uri: string): string {
-  return uri.split('/').pop()?.replace(/_/g, ' ').replace(/-2D/g, '-') || uri;
-}
-
-function formatUriList(uris: string[]): string {
-  return uris
-      .map(u =>
-          decodeURIComponent(
-              u.split('/').pop()
-                  ?.replace(/-2D/g, '-')
-                  .replace(/_/g, ' ') || u
-          )
-      )
-      .join(", ");
-}
-
-async function loadEntityDetails(uri: string) {
+async function loadGeoEntityDetails(uri: string) {
   loadingDetails.value = true;
   try {
-    const res = await api.get(`/entity/${encodeURIComponent(uri)}`);
+    const res = await api.get(`/entity-geo/${encodeURIComponent(uri)}`);
     entityDetails.value = res.data;
+    //selectedInfoEntity.value = null;
   } catch (error) {
     console.error('Failed to load entity details:', error);
     entityDetails.value = null;
@@ -590,9 +500,33 @@ async function loadEntityDetails(uri: string) {
   }
 }
 
+async function loadInfoEntityDetails(uri: string) {
+  loadingInfoDetails.value = true;
+  try {
+    const res = await api.get(`/entity-details/${encodeURIComponent(uri)}`);
+    selectedInfoEntity.value = res.data;
+    //entityDetails.value = null;
+  } catch (error) {
+    console.error('Failed to load entity details:', error);
+    selectedInfoEntity.value = null;
+  } finally {
+    loadingInfoDetails.value = false;
+  }
+}
+
 function closeDetails() {
   selectedEntity.value = null;
+  closeGeoPanel();
+  closeInfoPanel();
+}
+
+function closeGeoPanel() {
   entityDetails.value = null;
+  console.log("close geo")
+}
+
+function closeInfoPanel() {
+  selectedInfoEntity.value = null;
 }
 
 async function loadEntities(lat: number, lng: number) {
@@ -608,16 +542,18 @@ async function loadEntities(lat: number, lng: number) {
       from_year: filters.fromYear,
       to_year: filters.toYear,
       only_historical: filters.onlyHistorical,
+      only_monuments: filters.onlyMonuments,
+      has_artist: filters.onlyWithArchitect,
+      related_to: filters.onlyWithResidents,
+      named_after: filters.onlyNamed,
     };
 
     if (filters.buildingTypes.length > 0) {
       params.building_types = filters.buildingTypes.map(t => {
         // Prevent malforming SPARQL query in backend by escaping trailing "."
         if (t.endsWith(".")) {
-          console.log("ends")
           return t.substring(0, t.length - 1) + "\\.";
         }
-        console.log(t)
         return t;
       });
     }
@@ -626,10 +562,8 @@ async function loadEntities(lat: number, lng: number) {
       params.event_types = filters.eventTypes.map(t => {
         // Prevent malforming SPARQL query in backend by escaping trailing "."
         if (t.endsWith(".")) {
-          console.log("ends")
           return t.substring(0, t.length - 1) + "\\.";
         }
-        console.log(t)
         return t;
       });
     }
@@ -638,15 +572,12 @@ async function loadEntities(lat: number, lng: number) {
       params.place_types = filters.placeTypes.map(t => {
         // Prevent malforming SPARQL query in backend by escaping trailing "."
         if (t.endsWith(".")) {
-          console.log("ends")
           return t.substring(0, t.length - 1) + "\\.";
         }
-        console.log(t)
         return t;
       });
     }
 
-    console.log(filters)
     const res = await api.get<Entities>("/entities", {
       params,
       paramsSerializer: params => qs.stringify(params, {arrayFormat: "repeat"})
@@ -663,7 +594,7 @@ async function loadEntities(lat: number, lng: number) {
 
       marker.on('click', () => {
         selectedEntity.value = entity;
-        loadEntityDetails(entity.uri);
+        loadGeoEntityDetails(entity.uri);
       });
 
       markers.push(marker);
@@ -703,17 +634,23 @@ function reset() {
   }
   clearMarkers();
   closeDetails();
+  toggleAll.buildings = true;
+  toggleAll.events = false;
+  toggleAll.places = false;
+  toggleAllSubtypes('buildings')
+  expandedCategories.buildings = false;
+  toggleAllSubtypes('events')
+  expandedCategories.events = false;
+  toggleAllSubtypes('places')
+  expandedCategories.places = false;
   filters.fromYear = 0;
-  filters.toYear = 2026;
+  filters.toYear = currentYear;
   filters.radius = 1000;
   filters.onlyHistorical = false;
   filters.onlyWithArchitect = false;
-  filters.onlyWithInhabitants = false;
-  filters.onlyWithEvents = false;
+  filters.onlyWithResidents = false;
   filters.onlyNamed = false;
-  filters.buildingTypes = [] as string[];
-  filters.eventTypes = [] as string[];
-  filters.placeTypes = [] as string[];
+  filters.onlyMonuments = false;
   filters.district = "";
 }
 
@@ -760,52 +697,61 @@ onMounted(() => {
 }
 
 /* Range Sliders */
-.range-slider {
+.radius-slider-wrapper {
+  margin-top: 8px;
   position: relative;
-  height: 40px;
-  margin: 10px 0;
 }
 
-.slider {
+.radius-slider {
   width: 100%;
   height: 6px;
-  border-radius: 3px;
-  background: #e5e7eb;
-  outline: none;
+  border-radius: 999px;
+  background: #3b82f6;
   -webkit-appearance: none;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  appearance: none;
+  outline: none;
 }
 
-.slider::-webkit-slider-thumb {
+/* Thumb */
+.radius-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 18px;
   height: 18px;
+  background: #ffffff;
+  border: 2px solid #3b82f6;
   border-radius: 50%;
-  background: #3b82f6;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-.slider::-moz-range-thumb {
+.radius-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
+  background: #ffffff;
+  border: 2px solid #3b82f6;
   border-radius: 50%;
-  background: #3b82f6;
   cursor: pointer;
-  border: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.slider-from {
-  z-index: 1;
+/* Value badge */
+.radius-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b82f6;
+  margin-left: 6px;
 }
 
-.slider-to {
-  z-index: 2;
+/* Warning */
+.warning-text {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #92400e;
+  background: #fef3c7;
+  padding: 6px 8px;
+  border-radius: 6px;
 }
+
 
 .range-labels {
   display: flex;
@@ -855,7 +801,7 @@ onMounted(() => {
   position: absolute;
   top: 20px;
   right: 20px;
-  width: 320px;
+  width: 380px;
   max-height: calc(100vh - 40px);
   background: white;
   border-radius: 12px;
@@ -898,14 +844,6 @@ onMounted(() => {
 }
 
 /* Time Inputs */
-.time-inputs {
-  display: flex;
-  gap: 10px;
-}
-
-.input-group {
-  flex: 1;
-}
 
 .input-group label {
   display: block;
@@ -914,19 +852,45 @@ onMounted(() => {
   margin-bottom: 4px;
 }
 
-.year-input {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.2s;
+.range-inputs {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.year-input:focus {
+.range-input {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.range-input label {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.range-input input {
+  width: 80px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+}
+
+.range-input input:focus {
   outline: none;
   border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
 }
+
+.range-separator {
+  font-size: 16px;
+  color: #6b7280;
+  padding-bottom: 4px;
+}
+
 
 /* Checkbox */
 .checkbox-label {
@@ -1248,12 +1212,5 @@ onMounted(() => {
 .control-panel::-webkit-scrollbar-thumb:hover,
 .details-panel::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
-}
-
-.entity-image {
-  max-width: 100%;
-  max-height: 240px;
-  object-fit: cover;
-  border-radius: 8px;
 }
 </style>
