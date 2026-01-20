@@ -6,7 +6,7 @@ BASE_URL = "https://www.geschichtewiki.wien.gv.at/"
 EXPORT_URL = "https://www.geschichtewiki.wien.gv.at/Spezial:RDF_exportieren"
 
 # === Data Directories ===
-DATA_DIR = "../data"
+DATA_DIR = "./data"
 RAW_DIR = os.path.join(DATA_DIR, "raw")
 RAW_BASE = os.path.join(RAW_DIR, "base")
 RAW_RELATED = os.path.join(RAW_DIR, "related")
@@ -25,7 +25,6 @@ GRAPHDB_SPARQL = f"{GRAPHDB_URL}/repositories/{GRAPHDB_REPO}"
 GRAPHDB_UPDATE = f"{GRAPHDB_URL}/repositories/{GRAPHDB_REPO}/statements"
 
 # === Categories to Extract ===
-# TODO missing Kategorie:Ereignisse ?, Kategorie:Topographische Objekte ?
 CATEGORIES = {
     "buildings": [
         "Kategorie:Bauwerke",
