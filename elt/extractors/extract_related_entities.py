@@ -6,7 +6,7 @@ from elt.utils.query_loader import load_query
 from .extract_vienna_history_wiki import ViennaHistoryWikiExtractor
 from elt.loaders.graphdb_loader import GraphDBLoader
 
-from elt.config import EXPORT_URL, RAW_RELATED, GRAPHDB_SPARQL, RATE_LIMIT_DELAY
+from elt.config import EXPORT_URL, RAW_RELATED, GRAPHDB_SPARQL
 
 
 HEADERS = {
@@ -97,8 +97,6 @@ class RelatedEntitiesExtractor:
 
         if entities_by_type['namedAfter']:
             self.fetch_entities_batch(entities_by_type['namedAfter'], 'named_after')
-
-        # self.graphdb_loader.load_directory(str(self.raw_dir))
 
 
 if __name__ == "__main__":
