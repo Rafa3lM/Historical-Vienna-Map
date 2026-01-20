@@ -1,0 +1,8 @@
+# Core dependencies
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+SPARQLWrapper==2.0.0
+python-multipart==0.0.19
+
+# Optional: for better error messages and debugging
+python-dotenv>=1.0.0
