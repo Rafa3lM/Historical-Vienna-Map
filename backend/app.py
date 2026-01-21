@@ -56,12 +56,13 @@ def get_entities_in_area(
         building_types: Optional[List[str]] = Query(None, description="Comma-separated list of building types"),
         event_types: Optional[List[str]] = Query(None, description="Comma-separated list of event types"),
         place_types: Optional[List[str]] = Query(None, description="Comma-separated list of place types"),
-        only_historical: bool = False,
-        has_artists: bool = Query(False),
-        related_to: bool = Query(False),
-        named_after: bool = Query(False),
-        has_events: bool = Query(False),
-        only_monuments: bool = Query(False)
+        only_historical: bool = Query(False, description="Only show demolished/no longer existing buildings"),
+        has_artists: bool = Query(False, description="Only entities with known architects/artists"),
+        related_to: bool = Query(False, description="Only entities with famous inhabitants or related people"),
+        named_after: bool = Query(False, description="Only entities named after a person"),
+        has_events: bool = Query(False, description="Only entities with related historical events"),
+        only_monuments: bool = Query(False,
+                                     description="Only officially protected monuments (HERIS/Cultural Heritage DB)")
 ) -> dict:
     """
     Get entities (buildings, events, places) within a spatial-temporal range
@@ -93,14 +94,14 @@ def get_entities_in_area(
 
     if not building_types_list and not event_types_list and not place_types_list:
         return {
-        "count": 0,
-        "query_params": {
-            "center": {"lat": lat, "lng": lng},
-            "radius": radius,
-            "time_range": {"from": from_year, "to": to_year}
-        },
-        "entities": []
-    }
+            "count": 0,
+            "query_params": {
+                "center": {"lat": lat, "lng": lng},
+                "radius": radius,
+                "time_range": {"from": from_year, "to": to_year}
+            },
+            "entities": []
+        }
 
     # Generate query
     query = SparqlQueries.get_entities_in_area(
