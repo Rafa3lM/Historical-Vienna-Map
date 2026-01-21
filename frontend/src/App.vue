@@ -44,6 +44,30 @@
             />
           </div>
         </div>
+
+        <!-- Time range mode -->
+        <div class="range-inputs">
+          <div class="radio-group">
+            <label class="radio-option">
+              <input
+                  type="radio"
+                  value="overlap"
+                  v-model="timeRangeMode"
+              />
+              <span>Overlapping</span>
+            </label>
+
+            <label class="radio-option">
+              <input
+                  type="radio"
+                  value="contained"
+                  v-model="timeRangeMode"
+              />
+              <span>Fully contained</span>
+            </label>
+          </div>
+        </div>
+
       </div>
 
       <!-- Radius Selection -->
@@ -72,34 +96,6 @@
         <p v-if="filters.radius >= 3000" class="warning-text">
           Large radius may impact performance
         </p>
-      </div>
-
-      <!-- Advanced Filters -->
-      <div class="control-section">
-        <label class="section-label">Advanced Filters</label>
-        <label class="checkbox-label">
-          <input
-              v-model="filters.onlyHistorical"
-              type="checkbox"
-          />
-          <span>Show only demolished buildings</span>
-        </label>
-        <label class="checkbox-label">
-          <input v-model="filters.onlyWithArchitect" type="checkbox"/>
-          <span>Only buildings with known architect</span>
-        </label>
-        <label class="checkbox-label">
-          <input v-model="filters.onlyWithResidents" type="checkbox"/>
-          <span>Only with famous residents</span>
-        </label>
-        <label class="checkbox-label">
-          <input v-model="filters.onlyNamed" type="checkbox"/>
-          <span>Only named after someone/something</span>
-        </label>
-        <label class="checkbox-label">
-          <input v-model="filters.onlyMonuments" type="checkbox"/>
-          <span>Denkmalschutz (monument protection)</span>
-        </label>
       </div>
 
       <!-- Entity Types -->
@@ -215,6 +211,34 @@
         </div>
       </div>
 
+      <!-- Advanced Filters -->
+      <div class="control-section">
+        <label class="section-label">Advanced Filters</label>
+        <label class="checkbox-label">
+          <input
+              v-model="filters.onlyHistorical"
+              type="checkbox"
+          />
+          <span>Show only demolished buildings</span>
+        </label>
+        <label class="checkbox-label">
+          <input v-model="filters.onlyWithArchitect" type="checkbox"/>
+          <span>Only buildings with known architect</span>
+        </label>
+        <label class="checkbox-label">
+          <input v-model="filters.onlyWithResidents" type="checkbox"/>
+          <span>Only with famous residents</span>
+        </label>
+        <label class="checkbox-label">
+          <input v-model="filters.onlyNamed" type="checkbox"/>
+          <span>Only named after someone/something</span>
+        </label>
+        <label class="checkbox-label">
+          <input v-model="filters.onlyMonuments" type="checkbox"/>
+          <span>Denkmalschutz (monument protection)</span>
+        </label>
+      </div>
+
       <button @click="applyFilters" class="apply-button">
         Apply Filters
       </button>
@@ -285,6 +309,8 @@ const resultsCount = ref<number | null>(null);
 const selectedEntity = ref<Entity | null>(null);
 const selectedInfoEntity = ref<InfoEntityDetails | null>(null);
 const entityDetails = ref<GeoEntityDetails | null>(null);
+const timeRangeMode = ref<'overlap' | 'contained'>('overlap');
+
 
 // Building types from Vienna Wiki
 const buildingTypes = [
@@ -351,6 +377,7 @@ const currentYear = new Date().getFullYear();
 const filters = reactive({
   fromYear: 0,
   toYear: currentYear,
+  timeRangeMode: timeRangeMode,
   radius: 750,
   onlyHistorical: false,
   onlyWithArchitect: false,
@@ -522,7 +549,6 @@ function closeDetails() {
 
 function closeGeoPanel() {
   entityDetails.value = null;
-  console.log("close geo")
 }
 
 function closeInfoPanel() {
@@ -541,6 +567,7 @@ async function loadEntities(lat: number, lng: number) {
       radius: filters.radius,
       from_year: filters.fromYear,
       to_year: filters.toYear,
+      time_range_mode: filters.timeRangeMode,
       only_historical: filters.onlyHistorical,
       only_monuments: filters.onlyMonuments,
       has_artist: filters.onlyWithArchitect,
@@ -645,7 +672,8 @@ function reset() {
   expandedCategories.places = false;
   filters.fromYear = 0;
   filters.toYear = currentYear;
-  filters.radius = 1000;
+  filters.timeRangeMode = 'overlap'
+  filters.radius = 750;
   filters.onlyHistorical = false;
   filters.onlyWithArchitect = false;
   filters.onlyWithResidents = false;
@@ -1213,4 +1241,29 @@ onMounted(() => {
 .details-panel::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+
+.radio-group {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+  accent-color: #3b82f6; /* Tailwind blue-500 */
+  cursor: pointer;
+}
+
+.radio-option span {
+  user-select: none;
+}
+
 </style>

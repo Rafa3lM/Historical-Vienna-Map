@@ -2,7 +2,7 @@
 Centralized SPARQL query management for Historical Vienna Map.
 Supports parameterized queries with filtering.
 """
-
+import datetime
 from typing import List, Optional
 
 
@@ -16,6 +16,7 @@ class SparqlQueries:
             radius: float,
             from_year: int,
             to_year: int,
+            time_range_mode: str = 'overlap',
             building_types: Optional[List[str]] = None,
             event_types: Optional[List[str]] = None,
             place_types: Optional[List[str]] = None,
@@ -33,11 +34,16 @@ class SparqlQueries:
             lat, lng: Center point coordinates
             radius: Search radius in meters
             from_year, to_year: Time range
+            time_range_mode: overlap: entity existed at any point in time range, contained: entity existed only inside time range
             building_types: List of building types (Kirche, Palais, etc.)
             event_types: List of event types (Brand, Versammlung, etc.)
             place_types: List of place types (Markt, Grünfläche, etc.)
             only_historical: If True, only show demolished buildings
-            include_buildings/events/places: What entity types to include
+            has_artists: List only entities with linked artists
+            related_to: List only entities with relatedTo attribute
+            named_after: List only entities named after someone/something
+            only_monuments: List only buildings with a monument protection database ID
+            has_events: List only entities linked to events
         """
 
         # Build entity type filter
@@ -68,6 +74,25 @@ class SparqlQueries:
             type_filter = f"""
             # Filter by type
             FILTER(?type IN ({types_string}))
+            """
+
+        # Temporal filter
+        time_range_filter = ""
+        if time_range_mode == "overlap":
+            time_range_filter = f"""
+            # Temporal filter: Entity existed at some point in timeframe
+            FILTER (
+                (!BOUND(?startDate) || YEAR(?startDate) <= {to_year}) &&
+                (!BOUND(?endDate) || YEAR(?endDate) >= {from_year})
+            )
+            """
+        elif time_range_mode == "contained":
+            time_range_filter = f"""
+            # Temporal filter: Entity constructed after start date and demolished before end date
+            FILTER (
+                (BOUND(?startDate) && YEAR(?startDate) >= {from_year}) &&
+                (BOUND(?endDate) && ({to_year == datetime.datetime.now().year} || YEAR(?endDate) <= {to_year}))
+            )
             """
 
         # Historical filter
@@ -144,11 +169,7 @@ class SparqlQueries:
             {type_filter}
             {historical_filter}
             
-            # Temporal filter: Entity existed at some point in timeframe
-            FILTER (
-                (!BOUND(?startDate) || YEAR(?startDate) <= {to_year}) &&
-                (!BOUND(?endDate) || YEAR(?endDate) >= {from_year})
-            )
+            {time_range_filter}
             
             # Spatial filter: Within radius
             FILTER (

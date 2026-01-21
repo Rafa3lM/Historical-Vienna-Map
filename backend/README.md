@@ -16,6 +16,7 @@ Search for buildings, events, and places within a spatial-temporal range.
 - `lat`, `lng` (required) - Center point coordinates
 - `radius` (optional, default: 500) - Search radius in meters (50-15000)
 - `from_year`, `to_year` (optional) - Time range (0-2026)
+- `time_frame_mode` - "overlapping" or "contained"
 - `building_types[]` - Filter by building types (e.g., "Kirche", "Palais")
 - `event_types[]` - Filter by event types (e.g., "Brand", "Demonstration")
 - `place_types[]` - Filter by place types (e.g., "Markt", "Grünfläche")
