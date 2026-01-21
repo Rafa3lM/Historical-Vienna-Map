@@ -15,10 +15,10 @@
 2. **Load the data**
 ```bash
    # Full pipeline (extracts data from sources and loads into GraphDB)
-   docker-compose exec etl python -m elt.pipeline
+   docker-compose exec elt python -m elt.pipeline
    
    # OR if you already have extracted data files
-   docker-compose exec etl python -m elt.pipeline --skip-extract
+   docker-compose exec elt python -m elt.pipeline --skip-extract
 ```
 
 3. **Access the application**
@@ -42,24 +42,24 @@ The ELT pipeline supports different execution modes:
 ### Full Pipeline
 Extracts data from all sources and loads it into GraphDB:
 ```bash
-docker-compose exec etl python -m elt.pipeline
+docker-compose exec elt python -m elt.pipeline
 ```
 
 ### Skip Extraction (Use Existing Data)
 Uses previously extracted data files without re-downloading:
 ```bash
-docker-compose exec etl python -m elt.pipeline --skip-extract
+docker-compose exec elt python -m elt.pipeline --skip-extract
 ```
 
 ### Clean Start (Reset Database)
 Clears all data from GraphDB before loading:
 ```bash
-docker-compose exec etl python -m elt.pipeline --clean
+docker-compose exec elt python -m elt.pipeline --clean
 ```
 
 ### Combined Options
 ```bash
-docker-compose exec etl python -m elt.pipeline --clean --skip-extract
+docker-compose exec elt python -m elt.pipeline --clean --skip-extract
 ```
 
 ## Architecture
