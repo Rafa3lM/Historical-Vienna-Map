@@ -516,7 +516,11 @@ function getIconForEntity(typeUri: string): L.DivIcon {
 async function loadGeoEntityDetails(uri: string) {
   loadingDetails.value = true;
   try {
-    const res = await api.get(`/entity-geo/${encodeURIComponent(uri)}`);
+    const res = await api.get("/entity-geo", {
+      params: {
+        uri: uri
+      }
+    });
     entityDetails.value = res.data;
     //selectedInfoEntity.value = null;
   } catch (error) {
@@ -530,7 +534,11 @@ async function loadGeoEntityDetails(uri: string) {
 async function loadInfoEntityDetails(uri: string) {
   loadingInfoDetails.value = true;
   try {
-    const res = await api.get(`/entity-details/${encodeURIComponent(uri)}`);
+    api.get("/entity-details", {
+      params: {
+        uri
+      }
+    })
     selectedInfoEntity.value = res.data;
     //entityDetails.value = null;
   } catch (error) {
