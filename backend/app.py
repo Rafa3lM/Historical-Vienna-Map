@@ -165,8 +165,8 @@ def get_entities_in_area(
     }
 
 
-@app.get("/entity-geo/{uri:path}")
-def get_geo_entity(uri: str) -> dict:
+@app.get("/entity-geo")
+def get_geo_entity(uri: str = Query(...)) -> dict:
     """
     Get detailed information about an entity.
     """
@@ -237,8 +237,8 @@ def get_geo_entity(uri: str) -> dict:
     return details
 
 
-@app.get("/entity-details/{uri:path}")
-def get_info_entity(uri: str) -> dict:
+@app.get("/entity-details")
+def get_info_entity(uri: str = Query(...)) -> dict:
     """
     Get detailed information about an entity.
     """
