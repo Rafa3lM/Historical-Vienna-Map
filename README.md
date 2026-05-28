@@ -4,7 +4,7 @@
 
 ### Prerequisites
 - Docker
-- Docker Compose
+- Docker Compose 2.0
 
 ### Running the Application
 
