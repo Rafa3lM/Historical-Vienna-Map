@@ -22,6 +22,12 @@ class WikidataMonumentEnricher:
         print("Executing federated query to Wikidata...")
 
         sparql = SPARQLWrapper(self.graphdb_update)
+
+        sparql.addCustomHttpHeader(
+            "User-Agent",
+            "HistoricalViennaMap (https://github.com/Rafa3lM/Historical-Vienna-Map)"
+        )
+
         query = load_query("enrich_monuments.sparql")
 
         sparql.setQuery(query)
