@@ -1,3 +1,5 @@
+from time import sleep
+
 import requests
 from rdflib import Graph, Namespace, Literal, URIRef
 from rdflib.namespace import RDF, RDFS
@@ -35,33 +37,39 @@ class OSMDistrictExtractor:
 
         print("Fetching Vienna districts from OpenStreetMap...")
 
-        try:
-            response = requests.post(
-                self.overpass_url,
-                data={'data': query},
-                timeout=120
-            )
+        for attempt in range(3):
+            try:
+                response = requests.post(
+                    self.overpass_url,
+                    data={'data': query},
+                    timeout=120
+                )
 
-            if response.status_code == 200:
-                data = response.json()
-                num_districts = len(data.get('elements', []))
-                print(f"Fetched {num_districts} districts from OSM")
+                if response.status_code == 200:
+                    data = response.json()
+                    num_districts = len(data.get('elements', []))
+                    print(f"Fetched {num_districts} districts from OSM")
 
-                if num_districts == 0:
-                    print("Warning: No districts found. Check OSM query.")
+                    if num_districts == 0:
+                        print("Warning: No districts found. Check OSM query.")
 
-                return data
-            else:
-                print(f"Failed to fetch districts: HTTP {response.status_code}")
-                print(f"Response: {response.text[:200]}")
-                return None
+                    return data
+                else:
+                    sleep(3)
+                    continue
 
-        except requests.exceptions.Timeout:
-            print("Request timed out. Overpass API might be busy. Try again later.")
-            return None
-        except Exception as e:
-            print(f"Error fetching districts: {str(e)}")
-            return None
+            except requests.exceptions.Timeout:
+                print("Request timed out. Overpass API might be busy. Trying again.")
+                sleep(3)
+                continue
+            except Exception as e:
+                print(f"Error fetching districts: {str(e)}")
+                sleep(3)
+                continue
+
+        print(f"Failed to fetch districts: HTTP {response.status_code}")
+        print(f"Response: {response.text[:200]}")
+        return None
 
     @staticmethod
     def convert_to_wkt_polygon(members: list) -> str:
