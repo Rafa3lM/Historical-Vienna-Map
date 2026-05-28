@@ -1,0 +1,22 @@
+PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+PREFIX schema: <https://schema.org/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+INSERT {
+  ?sub geo:hasGeometry [
+    geo:asWKT ?wkt
+  ] .
+}
+WHERE {
+  ?sub schema:geo ?coord .
+
+  BIND(
+    CONCAT(
+      "POINT(",
+      STRAFTER(?coord, ","),
+      " ",
+      STRBEFORE(?coord, ","),
+      ")"
+    ) AS ?wkt
+  )
+}

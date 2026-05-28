@@ -1,0 +1,23 @@
+PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+PREFIX geof: <http://www.opengis.net/def/function/geosparql/>
+PREFIX schema: <https://schema.org/>
+PREFIX district: <http://example.org/vienna/district/>
+
+INSERT {
+    ?sub schema:containedInPlace ?district .
+    ?district schema:location ?sub .
+}
+WHERE {
+    # Get subject with geometry
+    ?sub geo:hasGeometry/geo:asWKT ?subWkt .
+
+    # Get district with geometry
+    ?district a schema:AdministrativeArea ;
+              geo:hasGeometry/geo:asWKT ?districtWkt .
+
+    # Check if building is within district boundary
+    FILTER(geof:sfWithin(?subWkt, ?districtWkt))
+
+    # Avoid duplicates
+    FILTER NOT EXISTS { ?sub schema:containedInPlace ?district }
+}

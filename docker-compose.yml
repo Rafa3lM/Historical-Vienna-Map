@@ -1,0 +1,62 @@
+services:
+  graphdb:
+    image: ontotext/graphdb:10.7.0
+    container_name: graphdb
+    ports:
+      - "7200:7200"
+    user: root
+    environment:
+      - GDB_HEAP_SIZE=4g
+    volumes:
+      - ./graphdb-data:/opt/graphdb/home
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:7200/rest/repositories/vienna" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    container_name: backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      graphdb:
+        condition: service_healthy
+    environment:
+      - GRAPHDB_URL=http://graphdb:7200/repositories/vienna
+      - GRAPHDB_SPARQL=http://graphdb:7200/repositories/vienna
+    volumes:
+      - ./backend:/app/backend
+
+  frontend:
+    container_name: frontend
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:8000
+
+  elt:
+    container_name: elt
+    build:
+      context: .
+      dockerfile: elt/Dockerfile
+    depends_on:
+      graphdb:
+        condition: service_healthy
+    environment:
+      - GRAPHDB_URL=http://graphdb:7200
+      - GRAPHDB_REPO=vienna
+      - GRAPHDB_SPARQL=http://graphdb:7200/repositories/vienna
+      - DATA_DIR=/app/data
+    volumes:
+      - ./elt:/app/elt
+      - ./data:/app/data
+    command: tail -f /dev/null
