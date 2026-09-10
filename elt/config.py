@@ -53,7 +53,7 @@ CATEGORIES = {
 
         "Kategorie:Sonstiges Bauwerk",
 
-        "Kategorie:Stiege"
+        "Kategorie:Stiege",
 
         "Kategorie:Wasserbauwerk",
         "Kategorie:Brunnen",
