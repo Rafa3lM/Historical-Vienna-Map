@@ -1,0 +1,14 @@
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+# The VALUES block below is injected at runtime with the Wikidata IRIs
+# mapped from GraphDB's local entities (see enrich_wikidata_monuments.py).
+SELECT ?wikidataUri ?style ?styleLabel WHERE {
+    VALUES ?wikidataUri {
+__VALUES__
+    }
+    # P149 = architectural style on Wikidata
+    ?wikidataUri wdt:P149 ?style .
+    ?style rdfs:label ?styleLabel .
+    FILTER(LANG(?styleLabel) = "en" || LANG(?styleLabel) = "")
+}
