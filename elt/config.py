@@ -128,6 +128,17 @@ REQUIRED_PROPERTIES = {
 # Vienna district borders from Overpass API
 OSM_OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
+# === Wikidata Configuration ===
+# Wikidata now rejects requests without a descriptive User-Agent
+# (see https://w.wiki/4wJS and https://phabricator.wikimedia.org/T400119).
+WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
+WIKIDATA_USER_AGENT = os.getenv(
+    "WIKIDATA_USER_AGENT",
+    "Historical-Vienna-Map-ELT/1.0 "
+    "(https://github.com/Rafa3lM/Historical-Vienna-Map; "
+    "contact: rafael.milchram@gmail.com)",
+)
+
 # === Namespaces ===
 SCHEMA = Namespace("https://schema.org/")
 OWL = Namespace("http://www.w3.org/2002/07/owl#")
