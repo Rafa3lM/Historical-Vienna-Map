@@ -21,6 +21,11 @@ class OSMDistrictExtractor:
         self.schema = SCHEMA
         self.processed_dir = Path(PROCESSED_DIR)
         self.processed_dir.mkdir(parents=True, exist_ok=True)
+        # Overpass API rejects requests without a descriptive User-Agent (HTTP 406).
+        self.headers = {
+            "User-Agent": "ViennaHistoryWikiELT/1.0 (contact: local dev; district-border extraction)",
+            "Accept": "application/json",
+        }
 
     def fetch_districts(self) -> dict:
         """Fetch Vienna districts from Overpass API"""
@@ -42,6 +47,7 @@ class OSMDistrictExtractor:
                 response = requests.post(
                     self.overpass_url,
                     data={'data': query},
+                    headers=self.headers,
                     timeout=120
                 )
 
