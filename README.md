@@ -45,6 +45,30 @@ Extracts data from all sources and loads it into GraphDB:
 docker-compose exec elt python -m elt.pipeline
 ```
 
+### Dump-first Extraction (default)
+The Vienna History Wiki extraction is dump-first. If a wiki dump is present at
+`data/dump/ViennaHistoryWiki.rdf.gz` (the legacy location
+`data/raw/dump/ViennaHistoryWiki.rdf.gz` is also accepted), the pipeline streams
+it directly without any HTTP requests:
+```bash
+# Default: uses data/dump/ViennaHistoryWiki.rdf.gz if present
+docker-compose exec elt python -m elt.pipeline
+```
+
+To force the live Vienna History Wiki RDF export (HTTP POST to
+`Spezial:RDF_exportieren`) instead, use:
+```bash
+docker-compose exec elt python -m elt.pipeline --use-live-export
+```
+
+A different dump file can be selected with:
+```bash
+docker-compose exec elt python -m elt.pipeline --dump-path /path/to/ViennaHistoryWiki.rdf.gz
+```
+
+Both base entities (step 1) and related entities (step 4) use the dump when it
+is available, so dump mode does not depend on GraphDB for step 4.
+
 ### Skip Extraction (Use Existing Data)
 Uses previously extracted data files without re-downloading:
 ```bash
@@ -55,6 +79,20 @@ docker-compose exec elt python -m elt.pipeline --skip-extract
 Clears all data from GraphDB before loading:
 ```bash
 docker-compose exec elt python -m elt.pipeline --clean
+```
+
+### Run a Single Step
+Re-run one pipeline step in isolation (e.g. after fixing step 6) without
+replaying the earlier steps. Steps can be addressed by number, name, method
+name, or a unique prefix:
+```bash
+# List all steps
+python -m elt.pipeline --list-steps
+
+# Equivalent ways to run only step 6 (Wikidata enrichment)
+docker-compose exec elt python -m elt.pipeline --step 6
+docker-compose exec elt python -m elt.pipeline --step "Enrich Data"
+docker-compose exec elt python -m elt.pipeline --step enrich
 ```
 
 ### Combined Options

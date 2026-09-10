@@ -52,9 +52,10 @@ This pipeline extracts historical data about Vienna's buildings, events, and rel
 - Uploads related entity RDF files to GraphDB
 
 **Step 6: Enrich with Wikidata**
-- Queries loaded entities for Wikidata IDs
-- Fetches cultural heritage identifiers via Wikidata SPARQL endpoint
-- Inserts heritage IDs directly into GraphDB
+- Reads loaded entities with Wikidata links from GraphDB
+- Queries Wikidata directly for cultural heritage IDs (P2951/P9154) and
+  architectural styles (P149)
+- Inserts the results into GraphDB
 
 **Step 7: Load District Boundaries**
 - Loads district polygon geometries into GraphDB
@@ -108,6 +109,16 @@ docker-compose exec elt python -m elt.pipeline --clean
 ```
 
 Clears all data from GraphDB before loading. Prompts for confirmation.
+
+### Run a Single Step
+Re-run one step in isolation by number, name, method name, or unique prefix:
+```bash
+python -m elt.pipeline --list-steps
+
+docker-compose exec elt python -m elt.pipeline --step 6
+docker-compose exec elt python -m elt.pipeline --step "Enrich Data"
+docker-compose exec elt python -m elt.pipeline --step enrich
+```
 
 ### Combined Options
 ```bash
