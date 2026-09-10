@@ -7,6 +7,9 @@ services:
     user: root
     environment:
       - GDB_HEAP_SIZE=4g
+      # Allow writes even when the host disk is below the 5% free-space
+      # threshold (the ELT load is small; the percentage guard is too strict).
+      - GDB_JAVA_OPTS=-Dgraphdb.health.minimal.free.storage.enabled=false -Dgraphdb.health.minimal.free.storage.asyncCheck=false
     volumes:
       - ./graphdb-data:/opt/graphdb/home
     healthcheck:
