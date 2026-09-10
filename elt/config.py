@@ -1,3 +1,4 @@
+from pathlib import Path
 from rdflib import Namespace
 import os
 
@@ -12,11 +13,35 @@ RAW_BASE = os.path.join(RAW_DIR, "base")
 RAW_RELATED = os.path.join(RAW_DIR, "related")
 PROCESSED_DIR = os.path.join(DATA_DIR, "processed")
 
+# === Wiki Dump Configuration ===
+DUMP_DIR = os.path.join(DATA_DIR, "dump")
+DEFAULT_DUMP_FILE = os.path.join(DUMP_DIR, "ViennaHistoryWiki.rdf.gz")
+# Older location kept for backwards compatibility.
+LEGACY_DUMP_FILE = os.path.join(RAW_DIR, "dump", "ViennaHistoryWiki.rdf.gz")
+
 # Create directories if they don't exist
 os.makedirs(RAW_DIR, exist_ok=True)
 os.makedirs(RAW_BASE, exist_ok=True)
 os.makedirs(RAW_RELATED, exist_ok=True)
 os.makedirs(PROCESSED_DIR, exist_ok=True)
+os.makedirs(DUMP_DIR, exist_ok=True)
+
+
+def resolve_dump_path(override=None):
+    """Return the Vienna History Wiki dump path if one exists, else None.
+
+    An explicit override is used verbatim.  Otherwise the canonical
+    ``data/dump`` location is checked first, then the legacy
+    ``data/raw/dump`` location.
+    """
+    if override:
+        path = Path(override)
+        return path if path.is_file() else None
+
+    for path in (Path(DEFAULT_DUMP_FILE), Path(LEGACY_DUMP_FILE)):
+        if path.is_file():
+            return path
+    return None
 
 # === GraphDB Configuration ===
 GRAPHDB_URL = os.getenv("GRAPHDB_URL", "http://localhost:7200")

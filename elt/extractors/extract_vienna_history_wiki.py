@@ -17,7 +17,12 @@ HEADERS = {
 
 
 class ViennaHistoryWikiExtractor:
-    """Extract data from Vienna History Wiki"""
+    """Extract data from Vienna History Wiki via the live RDF export.
+
+    This is the fallback path when no local wiki dump is available (or when
+    ``--use-live-export`` is requested).  It POSTs page names to
+    ``Spezial:RDF_exportieren`` over HTTP.
+    """
 
     def __init__(self):
         self.base_url = BASE_URL
@@ -117,6 +122,7 @@ class ViennaHistoryWikiExtractor:
         return sorted(pages)
 
     def run_extraction(self):
+        """Run the live wiki RDF export for all configured categories."""
         buildings_file = self.fetch_pages(self.raw_base, CATEGORIES["buildings"], "bauwerke_subcategories.rdf")
         buildings = self.extract_entities_from_category(buildings_file)
         building_rdf_files = self.fetch_details(self.raw_base, "buildings", buildings)

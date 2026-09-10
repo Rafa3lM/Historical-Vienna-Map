@@ -1,3 +1,4 @@
+import re
 import time
 from pathlib import Path
 
@@ -6,28 +7,103 @@ from elt.extractors.enrich_wikidata_monuments import WikidataMonumentEnricher
 from elt.extractors.extract_related_entities import RelatedEntitiesExtractor
 from elt.extractors.extract_osm_districts import OSMDistrictExtractor
 from elt.extractors.extract_vienna_history_wiki import ViennaHistoryWikiExtractor
+from elt.extractors.extract_vienna_wiki_dump import DumpWikiExtractor
+from elt.config import resolve_dump_path
 from config import RAW_BASE, RAW_RELATED, PROCESSED_DIR, GRAPHDB_SPARQL
 from elt.utils.query_loader import load_query
+
+
+# (display name, bound method name) for every pipeline step, in run order.
+PIPELINE_STEPS = [
+    ("Extract Vienna Wiki Data", "step_1_extract_vienna_wiki"),
+    ("Extract District Borders", "step_2_extract_osm_districts"),
+    ("Load Raw Data", "step_3_load_raw_data"),
+    ("Extract Related Entities", "step_4_extract_related_entities"),
+    ("Load Related Entities Raw Data", "step_5_load_related_entities"),
+    ("Enrich Data", "step_6_enrich_data"),
+    ("Load Districts", "step_7_load_districts"),
+    ("Transform Coordinates", "step_8_transform_coordinates"),
+    ("Link Buildings to Districts", "step_9_link_buildings_to_districts"),
+    ("Validate Data", "step_10_validate"),
+]
+
+
+def _slugify(value):
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+
+def resolve_step(key):
+    """Resolve a user-supplied step reference to ``(name, method_name)``.
+
+    Accepts the step number (``"6"``), the method name
+    (``"step_6_enrich_data"``), the display name (``"Enrich Data"``), a slug
+    (``"enrich-data"``), or a unique prefix (``"enrich"``).
+    """
+    key = str(key).strip()
+    if not key:
+        raise ValueError("No step specified. Use a number, name, or method name.")
+
+    key_lower = key.lower()
+    key_slug = _slugify(key)
+
+    # Exact match on number, method name, display name, or slug.
+    for number, (name, method) in enumerate(PIPELINE_STEPS, start=1):
+        if key_lower in (str(number), method, name.lower(), _slugify(name)):
+            return (name, method)
+
+    # Unique prefix match (e.g. "enrich" -> "Enrich Data").
+    prefix_matches = [
+        (name, method)
+        for name, method in PIPELINE_STEPS
+        if _slugify(name).startswith(key_slug) or method.startswith(key_lower)
+    ]
+    if len(prefix_matches) == 1:
+        return prefix_matches[0]
+
+    listing = "\n".join(
+        f"  {number:>2}: {name} ({method})"
+        for number, (name, method) in enumerate(PIPELINE_STEPS, start=1)
+    )
+    if len(prefix_matches) > 1:
+        ambiguous = ", ".join(name for name, _ in prefix_matches)
+        raise ValueError(
+            f"Ambiguous step '{key}' (matches: {ambiguous}). "
+            f"Use a number, name, or method name:\n{listing}"
+        )
+    raise ValueError(
+        f"Unknown step '{key}'. Use a number, name, or method name:\n{listing}"
+    )
 
 
 class ViennaDataPipeline:
     """Main pipeline orchestrator"""
 
-    def __init__(self, clean_start=False):
+    def __init__(self, clean_start=False, use_live_export=False, dump_path=None):
         self.loader = GraphDBLoader()
         self.clean_start = clean_start
+        self.use_live_export = use_live_export
+        self.dump_path = dump_path
+        self.dump_available = (
+            not use_live_export and resolve_dump_path(dump_path) is not None
+        )
 
-    @staticmethod
-    def step_1_extract_vienna_wiki():
-        """Extract vienna wiki pages"""
+    def step_1_extract_vienna_wiki(self):
+        """Extract vienna wiki pages (dump-first, live export fallback)"""
         print("\n" + "=" * 60)
         print("STEP 1: Extract Vienna Wiki Data")
         print("=" * 60)
 
-        extractor = ViennaHistoryWikiExtractor()
-        filepath = extractor.run_extraction()
+        if self.dump_available:
+            print("Source: local Vienna History Wiki dump")
+            extractor = DumpWikiExtractor(dump_path=self.dump_path)
+            extractor.extract_base_entities()
+            print(f"Vienna History Wiki data extracted from {extractor.dump_path}")
+        else:
+            print("Source: live Vienna History Wiki RDF export")
+            extractor = ViennaHistoryWikiExtractor()
+            extractor.run_extraction()
+            print("Vienna History Wiki data extracted via live RDF export")
 
-        print(f"Vienna History Wiki data extracted to {filepath}")
         return True
 
     @staticmethod
@@ -66,14 +142,15 @@ class ViennaDataPipeline:
         print(f"\nLoaded {count} files into GraphDB")
         return count > 0
 
-    @staticmethod
-    def step_4_extract_related_entities():
-        """Extract raw Vienna Wiki data"""
+    def step_4_extract_related_entities(self):
+        """Extract related entities (dump-first, GraphDB/live fallback)"""
         print("\n" + "=" * 60)
         print("STEP 4: Fetch related entities (architects, famous inhabitants, named after)")
         print("=" * 60)
 
-        extractor = RelatedEntitiesExtractor()
+        source = "dump" if self.dump_available else "live"
+        print(f"Source: {source}")
+        extractor = RelatedEntitiesExtractor(source=source, dump_path=self.dump_path)
         extractor.run_extraction()
         return True
 
@@ -90,13 +167,14 @@ class ViennaDataPipeline:
 
     @staticmethod
     def step_6_enrich_data():
-        """Enrich all loaded Vienna History Wiki entities with cultural heritage IDs from Wikidata"""
+        """Enrich entities with cultural heritage IDs and architectural styles from Wikidata"""
         print("\n" + "=" * 60)
-        print("STEP 6: Load cultural heritage IDs from Wikidata")
+        print("STEP 6: Enrich data from Wikidata (heritage IDs + architectural styles)")
         print("=" * 60)
 
         monument_enricher = WikidataMonumentEnricher()
         monument_enricher.enrich_with_wikidata_heritage_ids()
+        monument_enricher.enrich_with_wikidata_architectural_styles()
         return True
 
     def step_7_load_districts(self):
@@ -199,16 +277,7 @@ class ViennaDataPipeline:
         start_time = time.time()
 
         steps = [
-            ("Extract Vienna Wiki Data", self.step_1_extract_vienna_wiki),
-            ("Extract District Borders", self.step_2_extract_osm_districts),
-            ("Load Raw Data", self.step_3_load_raw_data),
-            ("Extract Related Entities", self.step_4_extract_related_entities),
-            ("Load Related Entities Raw Data", self.step_5_load_related_entities),
-            ("Enrich Data", self.step_6_enrich_data),
-            ("Load Districts", self.step_7_load_districts),
-            ("Transform Coordinates", self.step_8_transform_coordinates),
-            ("Link Buildings to Districts", self.step_9_link_buildings_to_districts),
-            ("Validate Data", self.step_10_validate),
+            (name, getattr(self, method)) for name, method in PIPELINE_STEPS
         ]
 
         results = {}
@@ -243,19 +312,77 @@ class ViennaDataPipeline:
         print(f"\nTotal time: {elapsed:.1f} seconds")
         print("=" * 60)
 
+    def run_step(self, step_key):
+        """Run a single pipeline step in isolation."""
+        name, method = resolve_step(step_key)
+        step_func = getattr(self, method)
+
+        print("\n" + "=" * 60)
+        print("VIENNA HISTORICAL MAP - ELT PIPELINE (single step)")
+        print("=" * 60)
+        print(f"Running step: {name} ({method})")
+
+        start_time = time.time()
+        try:
+            success = step_func()
+            result = "Success" if success else "Error"
+        except Exception as e:
+            result = "Error"
+            print(f"\nError in {name}: {e}")
+            import traceback
+            traceback.print_exc()
+
+        elapsed = time.time() - start_time
+
+        print("\n" + "=" * 60)
+        print("STEP SUMMARY")
+        print("=" * 60)
+        print(f"{result} {name}")
+        print(f"Total time: {elapsed:.1f} seconds")
+        print("=" * 60)
+
+        return result == "Success"
+
 
 if __name__ == "__main__":
     import argparse
+    import sys
 
     parser = argparse.ArgumentParser(description='Vienna Historical Map ELT Pipeline')
     parser.add_argument('--clean', action='store_true',
                         help='Clear GraphDB before loading (WARNING: deletes all data)')
     parser.add_argument('--skip-extract', action='store_true',
                         help='Skip extraction steps (use existing data)')
+    parser.add_argument('--step', default=None,
+                        help='Run a single step by number, name, or method name '
+                             '(e.g. "6", "Enrich Data", "step_6_enrich_data")')
+    parser.add_argument('--list-steps', action='store_true',
+                        help='List available pipeline steps and exit')
+    parser.add_argument('--use-live-export', action='store_true',
+                        help='Force live Vienna History Wiki RDF export instead of the dump')
+    parser.add_argument('--dump-path', default=None,
+                        help='Override the Vienna History Wiki dump path')
 
     args = parser.parse_args()
 
-    pipeline = ViennaDataPipeline(clean_start=args.clean)
+    if args.list_steps:
+        for number, (name, method) in enumerate(PIPELINE_STEPS, start=1):
+            print(f"{number:>2}: {name} ({method})")
+        sys.exit(0)
+
+    pipeline = ViennaDataPipeline(
+        clean_start=args.clean,
+        use_live_export=args.use_live_export,
+        dump_path=args.dump_path,
+    )
+
+    if args.step is not None:
+        try:
+            ok = pipeline.run_step(args.step)
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        sys.exit(0 if ok else 1)
 
     if args.skip_extract:
         print("Skipping extraction - using existing data")

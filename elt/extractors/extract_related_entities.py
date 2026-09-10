@@ -4,6 +4,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 
 from elt.utils.query_loader import load_query
 from .extract_vienna_history_wiki import ViennaHistoryWikiExtractor
+from .extract_vienna_wiki_dump import DumpWikiExtractor
 from elt.loaders.graphdb_loader import GraphDBLoader
 
 from elt.config import EXPORT_URL, RAW_RELATED, GRAPHDB_SPARQL
@@ -17,9 +18,14 @@ HEADERS = {
 class RelatedEntitiesExtractor:
     """
     Extract related entities: Architects (Artists), Famous Inhabitants, Named After
+
+    ``source="dump"`` slices the related pages from a local wiki dump;
+    ``source="live"`` uses the existing GraphDB SPARQL + HTTP export flow.
     """
 
-    def __init__(self):
+    def __init__(self, source="live", dump_path=None):
+        self.source = source
+        self.dump_path = dump_path
         self.export_url = EXPORT_URL
         self.graphdb_url = GRAPHDB_SPARQL
         self.raw_related = RAW_RELATED
@@ -80,6 +86,11 @@ class RelatedEntitiesExtractor:
 
     def run_extraction(self):
         """Main extraction workflow"""
+
+        if self.source == "dump":
+            extractor = DumpWikiExtractor(dump_path=self.dump_path)
+            extractor.extract_related_from_dump()
+            return
 
         # Get pages to extract from GraphDB
         entities_by_type = self.get_related_entities()
