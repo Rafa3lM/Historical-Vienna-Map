@@ -8,6 +8,7 @@ from elt.extractors.extract_related_entities import RelatedEntitiesExtractor
 from elt.extractors.extract_osm_districts import OSMDistrictExtractor
 from elt.extractors.extract_vienna_history_wiki import ViennaHistoryWikiExtractor
 from elt.extractors.extract_vienna_wiki_dump import DumpWikiExtractor
+from elt.kge import run_kge_step
 from elt.config import resolve_dump_path
 from config import RAW_BASE, RAW_RELATED, PROCESSED_DIR, GRAPHDB_SPARQL
 from elt.utils.query_loader import load_query
@@ -25,6 +26,7 @@ PIPELINE_STEPS = [
     ("Transform Coordinates", "step_8_transform_coordinates"),
     ("Link Buildings to Districts", "step_9_link_buildings_to_districts"),
     ("Validate Data", "step_10_validate"),
+    ("Build KGE Layer and Train Model", "step_11_build_kge")
 ]
 
 
@@ -266,6 +268,14 @@ class ViennaDataPipeline:
             except Exception as e:
                 print(f"  {label}: Error - {e}")
 
+        return True
+
+    def step_11_build_kge(self):
+        """Add KGE to validated knowledge graph"""
+        print("\n" + "=" * 60)
+        print("STEP 11: Build KGE layer onto validated knowledge graph")
+        print("=" * 60)
+        run_kge_step()
         return True
 
     def run_full_pipeline(self):
