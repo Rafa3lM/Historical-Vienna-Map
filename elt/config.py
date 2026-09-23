@@ -30,7 +30,7 @@ os.makedirs(DUMP_DIR, exist_ok=True)
 def resolve_dump_path(override=None):
     """Return the Vienna History Wiki dump path if one exists, else None.
 
-    An explicit override is used verbatim.  Otherwise the canonical
+    An explicit override is used verbatim. Otherwise the canonical
     ``data/dump`` location is checked first, then the legacy
     ``data/raw/dump`` location.
     """
