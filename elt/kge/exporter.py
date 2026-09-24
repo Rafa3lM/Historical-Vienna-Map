@@ -8,6 +8,7 @@ from elt.config import GRAPHDB_URL, GRAPHDB_REPO
 PREFIXES = """
 PREFIX schema: <https://schema.org/>
 PREFIX property: <http://www.geschichtewiki.wien.gv.at/Special:URIResolver/Property-3A>
+PREFIX vienna: <http://example.org/vienna/>
 """
 
 RELEVANT_PREDICATES = [
@@ -21,6 +22,9 @@ RELEVANT_PREDICATES = [
     "property:WikidataArchitecturalStyle",
     "schema:containedInPlace",
     "schema:relatedLink",
+    "vienna:activeDuringCentury",
+    "vienna:startDateCentury",
+    "vienna:endDateCentury",
 ]
 
 
