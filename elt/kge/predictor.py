@@ -33,6 +33,7 @@ def find_buildings_missing_style(sparql: SPARQLWrapper) -> list[str]:
     PREFIX geo: <http://www.opengis.net/ont/geosparql#>
     PREFIX property: <http://www.geschichtewiki.wien.gv.at/Special:URIResolver/Property-3A>
     SELECT DISTINCT ?building WHERE {
+      ?building property:Art_des_Bauwerks ?anyBuilding .
       ?building geo:hasGeometry ?g .
       FILTER NOT EXISTS { ?building property:WikidataArchitecturalStyle ?type }
     }
