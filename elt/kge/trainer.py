@@ -1,15 +1,16 @@
 from pathlib import Path
 
 import torch
+torch.set_num_threads(12)
 from pykeen.triples import TriplesFactory
 from pykeen.pipeline import pipeline
 
 TRIPLES_PATH = Path("data/processed/kge_triples.tsv")
 MODELS_OUTPUT_DIR = Path("data/processed/kge_models")
 
-NUM_EPOCHS = 500
+NUM_EPOCHS = 150
 RANDOM_SEED = 42
-MODELS_TO_COMPARE = ["TransE"] #"ComplEx"
+MODELS_TO_COMPARE = ["RotatE"] #"TransE", "ComplEx"
 
 
 def load_and_split():
@@ -36,7 +37,7 @@ def train_model(model_name: str, training, testing, validation):
         testing=testing,
         validation=validation,
         model=model_name,
-        training_kwargs=dict(num_epochs=NUM_EPOCHS),
+        training_kwargs=dict(num_epochs=NUM_EPOCHS, batch_size=4096),
         random_seed=RANDOM_SEED,
         device=device,
     )

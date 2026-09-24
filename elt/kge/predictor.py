@@ -9,7 +9,7 @@ from elt.kge.trainer import load_and_split, MODELS_OUTPUT_DIR, TRIPLES_PATH
 
 from elt.kge.exporter import GRAPHDB_URL, GRAPHDB_REPO
 
-MODEL_NAME = "transe"
+MODEL_NAME = "RotatE"
 STYLE_RELATION = "property:WikidataArchitecturalStyle"
 TOP_K = 1
 OUTPUT_PATH = Path("data/processed/predicted_styles.tsv")
