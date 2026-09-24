@@ -32,6 +32,10 @@ function formatUriList(list: string[]): string {
 function loadDetails(uri: string) {
   emit('open-info', uri);
 }
+
+function loadGeoDetails(uri: string) {
+  emit('open-geo', uri)
+}
 </script>
 
 <template>
@@ -179,7 +183,7 @@ function loadDetails(uri: string) {
                class="similar-entities"
           >
             <div class="detail-link">
-              <span @click="!loadingDetails && loadDetails(entity.entity)">
+              <span @click="!loadingDetails && loadGeoDetails(entity.entity)">
                 {{ formatType(entity.entity) }}
               </span>
             </div>
@@ -188,7 +192,6 @@ function loadDetails(uri: string) {
             </span>
           </div>
         </div>
-
 
         <!-- Wiki Link -->
         <div v-if="entityDetails.wikiPage" class="detail-item">
