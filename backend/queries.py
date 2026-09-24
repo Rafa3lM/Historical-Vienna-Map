@@ -197,6 +197,7 @@ class SparqlQueries:
         PREFIX schema: <https://schema.org/>
         PREFIX geo: <http://www.opengis.net/ont/geosparql#>
         PREFIX swivt: <http://semantic-mediawiki.org/swivt/1.0#>
+        PREFIX viennakge: <http://example.org/vienna/kge/>
 
         SELECT DISTINCT
             ?label
@@ -218,6 +219,10 @@ class SparqlQueries:
             ?image
             ?herisId
             ?cultId
+            ?wikidataArchitecturalStyle
+            ?predictedArchitecturalStyle
+            ?similarEntity
+            ?similarityScore
         WHERE {{
             BIND(<{entity_uri}> AS ?entity)
 
@@ -258,6 +263,17 @@ class SparqlQueries:
             # Links
             OPTIONAL {{ ?entity swivt:page ?wikiPage }}.
             OPTIONAL {{ ?entity schema:image ?image }}.
+            
+            # Architectural Style
+            OPTIONAL {{ ?entity viennakge:predictedArchitecturalStyle ?predictedArchitecturalStyle }}.
+            OPTIONAL {{ ?entity property:WikidataArchitecturalStyle ?wikidataArchitecturalStyle }}.
+            
+            # Similar Entities
+            OPTIONAL {{ 
+                ?entity viennakge:hasSimilarBuilding ?sim .
+                ?sim viennakge:similarBuilding ?similarEntity ;
+                     viennakge:similarityScore ?similarityScore .
+             }}
         }}
         """
         return query

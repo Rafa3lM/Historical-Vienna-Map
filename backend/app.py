@@ -234,6 +234,21 @@ def get_geo_entity(uri: str) -> dict:
     if "image" in res:
         details["image"] = res["image"]["value"]
 
+    # Architectural Style (wikidata or predicted)
+    if "wikidataArchitecturalStyle" in res:
+        details["wikidataArchitecturalStyle"] = res["wikidataArchitecturalStyle"]["value"]
+    if "predictedArchitecturalStyle" in res:
+        details["predictedArchitecturalStyle"] = res["predictedArchitecturalStyle"]["value"]
+
+    # Similar buildings
+    similar_entities = collect_values(results["results"]["bindings"], "similarEntity")
+    similarity_scores = collect_values(results["results"]["bindings"], "similarityScore")
+    if similar_entities and similarity_scores and len(similar_entities) == len(similarity_scores):
+        details["similarEntities"] = [
+            {"entity": a, "score": b}
+            for a, b in zip(similar_entities, similarity_scores)
+        ]
+
     return details
 
 
