@@ -160,7 +160,7 @@ function loadGeoDetails(uri: string) {
 
         <!-- Style (wikidata or predicted) -->
         <div v-if="entityDetails.wikidataArchitecturalStyles" class="detail-item">
-          <strong>Architectural Style (Wikidata)</strong>
+          <strong>Architectural Style (Wikidata):</strong>
           <div v-for="style in entityDetails.wikidataArchitecturalStyles"
                :key="style">
               <span>
@@ -169,7 +169,7 @@ function loadGeoDetails(uri: string) {
           </div>
         </div>
         <div v-if="entityDetails.predictedArchitecturalStyle" class="detail-item">
-          <strong>Architectural Style (predicted; experimental)</strong>
+          <strong>Architectural Style (predicted; experimental):</strong>
           <span>
               {{ formatStyle(entityDetails.predictedArchitecturalStyle) }}
             </span>
@@ -177,7 +177,7 @@ function loadGeoDetails(uri: string) {
 
         <!-- Similar Entities -->
         <div v-if="entityDetails.similarEntities" class="detail-item">
-          <strong>See also (experimental)</strong>
+          <strong>See also (experimental):</strong>
           <div v-for="entity in entityDetails.similarEntities"
                :key="entity.entity"
                class="similar-entities"
