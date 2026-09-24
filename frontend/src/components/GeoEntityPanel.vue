@@ -18,6 +18,13 @@ function formatType(uri: string): string {
       .replace(/-28/g, '(').replace(/-29/g, ')').replace(/_/g, ' ');
 }
 
+function formatStyle(style: string): string {
+  return style
+      .split(" ")
+      .map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())
+      .join(" ");
+}
+
 function formatUriList(list: string[]): string {
   return list.map(formatType).join(', ');
 }
@@ -147,6 +154,42 @@ function loadDetails(uri: string) {
             </span>
         </div>
 
+        <!-- Style (wikidata or predicted) -->
+        <div v-if="entityDetails.wikidataArchitecturalStyles" class="detail-item">
+          <strong>Architectural Style (Wikidata)</strong>
+          <div v-for="style in entityDetails.wikidataArchitecturalStyles"
+               :key="style">
+              <span>
+                {{ formatStyle(style) }}
+              </span>
+          </div>
+        </div>
+        <div v-if="entityDetails.predictedArchitecturalStyle" class="detail-item">
+          <strong>Architectural Style (predicted; experimental)</strong>
+          <span>
+              {{ formatStyle(entityDetails.predictedArchitecturalStyle) }}
+            </span>
+        </div>
+
+        <!-- Similar Entities -->
+        <div v-if="entityDetails.similarEntities" class="detail-item">
+          <strong>See also (experimental)</strong>
+          <div v-for="entity in entityDetails.similarEntities"
+               :key="entity.entity"
+               class="similar-entities"
+          >
+            <div class="detail-link">
+              <span @click="!loadingDetails && loadDetails(entity.entity)">
+                {{ formatType(entity.entity) }}
+              </span>
+            </div>
+            <span>
+              (Similarity: {{ entity.score }})
+            </span>
+          </div>
+        </div>
+
+
         <!-- Wiki Link -->
         <div v-if="entityDetails.wikiPage" class="detail-item">
           <a
@@ -255,6 +298,13 @@ function loadDetails(uri: string) {
 .detail-item span {
   font-size: 14px;
   color: #111827;
+}
+
+.similar-entities {
+  border-left: 1px solid #6b7280;
+  margin-bottom: 5px;
+  margin-left: -5px;
+  padding-left: 5px;
 }
 
 .historical-badge {

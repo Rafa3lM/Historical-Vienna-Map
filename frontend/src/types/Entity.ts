@@ -38,6 +38,12 @@ export interface GeoEntityDetails {
     image?: string;
     herisId?: string;
     cultId?: string;
+    wikidataArchitecturalStyles?: string[];
+    predictedArchitecturalStyle?: string;
+    similarEntities?: {
+        entity: string;
+        score: number;
+    }[];
 }
 
 export interface InfoEntityDetails {
