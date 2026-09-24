@@ -265,8 +265,14 @@ class SparqlQueries:
             OPTIONAL {{ ?entity schema:image ?image }}.
             
             # Architectural Style
-            OPTIONAL {{ ?entity viennakge:predictedArchitecturalStyle ?predictedArchitecturalStyle }}.
-            OPTIONAL {{ ?entity property:WikidataArchitecturalStyle ?wikidataArchitecturalStyle }}.
+            OPTIONAL {{ 
+                ?entity viennakge:predictedArchitecturalStyle ?predictedArchitecturalStyleURI .
+                ?predictedArchitecturalStyleURI rdfs:label ?predictedArchitecturalStyle .
+            }}
+            OPTIONAL {{ 
+                ?entity property:WikidataArchitecturalStyle ?wikidataArchitecturalStyleURI .
+                ?wikidataArchitecturalStyleURI rdfs:label ?wikidataArchitecturalStyle .
+            }}
             
             # Similar Entities
             OPTIONAL {{ 

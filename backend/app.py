@@ -235,8 +235,9 @@ def get_geo_entity(uri: str) -> dict:
         details["image"] = res["image"]["value"]
 
     # Architectural Style (wikidata or predicted)
-    if "wikidataArchitecturalStyle" in res:
-        details["wikidataArchitecturalStyle"] = res["wikidataArchitecturalStyle"]["value"]
+    wikidata_architectural_styles = collect_values(results["results"]["bindings"], "wikidataArchitecturalStyle")
+    if wikidata_architectural_styles:
+        details["wikidataArchitecturalStyles"] = wikidata_architectural_styles
     if "predictedArchitecturalStyle" in res:
         details["predictedArchitecturalStyle"] = res["predictedArchitecturalStyle"]["value"]
 
