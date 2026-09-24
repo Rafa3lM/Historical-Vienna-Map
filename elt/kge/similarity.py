@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
-from sklearn.cluster import KMeans
+from sklearn.cluster import DBSCAN
 from SPARQLWrapper import SPARQLWrapper, JSON
 
 from elt.kge.trainer import load_and_split
@@ -30,6 +30,11 @@ def get_all_buildings(sparql: SPARQLWrapper) -> list[str]:
 
 def extract_building_embeddings(model, training_tf, buildings: list[str]):
     entity_embeddings = model.entity_representations[0]().detach().cpu().numpy()
+
+    if np.iscomplexobj(entity_embeddings):
+        entity_embeddings = np.concatenate(
+            [entity_embeddings.real, entity_embeddings.imag], axis=-1
+        )
 
     labels, vectors = [], []
     skipped = 0
@@ -66,10 +71,39 @@ def compute_similarity(labels: list[str], vectors: np.ndarray) -> pd.DataFrame:
 
 
 def compute_clusters(labels: list[str], vectors: np.ndarray) -> pd.DataFrame:
-    kmeans = KMeans(n_clusters=NUM_CLUSTERS, random_state=42, n_init=10)
-    cluster_ids = kmeans.fit_predict(vectors)
-    print(f"KMenas inertia (k={NUM_CLUSTERS}): {kmeans.inertia_:.1f}")
+    dbscan = DBSCAN(eps=0.5, min_samples=6, metric="cosine")
+    cluster_ids = dbscan.fit_predict(vectors)
+
+    n_clusters = len(set(cluster_ids)) - (1 if -1 in cluster_ids else 0)
+    noise_ratio = (cluster_ids == -1).mean()
+    print(f"DBSCAN (eps={dbscan.eps}, min_samples={dbscan.min_samples}): {n_clusters} Cluster, {noise_ratio:.1%} Noise")
     return pd.DataFrame({"building": labels, "cluster_id": cluster_ids})
+
+
+def grid_search_dbscan(
+        vectors: np.ndarray,
+        eps_values=(0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59),
+        min_samples_values=(4, 5, 6, 7, 8, 9, 10),
+        #eps_values=(0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.45, 0.5, 0.6),
+        #min_samples_values=(4, 6, 8, 10),
+) -> pd.DataFrame:
+    rows = []
+    for min_samples in min_samples_values:
+        for eps in eps_values:
+            labels = DBSCAN(eps=eps, min_samples=min_samples, metric="cosine").fit_predict(vectors)
+            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+            noise_ratio = (labels == -1).mean()
+            rows.append(
+                {
+                    "min_samples": min_samples,
+                    "eps": eps,
+                    "n_clusters": n_clusters,
+                    "noise_ratio": round(noise_ratio, 3),
+                }
+            )
+    df = pd.DataFrame(rows)
+    print(df.to_string(index=False))
+    return df
 
 
 if __name__ == "__main__":
@@ -90,6 +124,7 @@ if __name__ == "__main__":
     similarity_df.to_csv(SIMILARITY_OUTPUT, sep="\t", index=False)
     print(f"Similarity table saved to {SIMILARITY_OUTPUT}")
 
+    #grid_search_dbscan(vectors)
     clusters_df = compute_clusters(labels, vectors)
     clusters_df.to_csv(CLUSTERS_OUTPUT, sep="\t", index=False)
     print(f"Cluster assignment saved to {CLUSTERS_OUTPUT}")
