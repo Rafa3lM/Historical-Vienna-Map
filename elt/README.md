@@ -51,11 +51,19 @@ This pipeline extracts historical data about Vienna's buildings, events, and rel
 **Step 5: Load Related Entities**
 - Uploads related entity RDF files to GraphDB
 
-**Step 6: Enrich with Wikidata**
+**Step 6: Enrich with Wikidata and derive categorical dates**
 - Reads loaded entities with Wikidata links from GraphDB
 - Queries Wikidata directly for cultural heritage IDs (P2951/P9154) and
   architectural styles (P149)
 - Inserts the results into GraphDB
+- Executes `queries/insert_categorical_dates.sparql` after style enrichment and
+  derives `http://example.org/vienna/startDateCentury`,
+  `http://example.org/vienna/endDateCentury`, and
+  `http://example.org/vienna/activeDuringCentury` labels such as `century18`
+- Uses `schema:startDate`/`schema:endDate` for entities, and
+  `schema:birthDate`/`schema:deathDate` for artists linked via `schema:artist`
+- Assigns manually curated periods and inclusive active-century labels to the
+  important architectural styles returned by Wikidata
 
 **Step 7: Load District Boundaries**
 - Loads district polygon geometries into GraphDB

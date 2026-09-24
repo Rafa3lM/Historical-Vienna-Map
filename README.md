@@ -110,4 +110,10 @@ docker-compose exec elt python -m elt.pipeline --clean --skip-extract
 ### Data Sources
 - **Vienna History Wiki**: Historical buildings, events, and people
 - **OpenStreetMap**: Vienna district boundaries
-- **Wikidata**: Monument protection database IDs
+- **Wikidata**: Monument protection database IDs and architectural styles
+
+Step 6 also derives categorical time labels in the project namespace
+`http://example.org/vienna/`: `startDateCentury`, `endDateCentury`, and
+`activeDuringCentury`. Labels use the form `century1`, `century2`, etc.; the
+same active-century labels are generated for dated entities, artists, and the
+curated architectural-style periods.

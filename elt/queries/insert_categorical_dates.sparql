@@ -1,0 +1,42 @@
+PREFIX property: <http://www.geschichtewiki.wien.gv.at/Special:URIResolver/Property-3A>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <https://schema.org/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Results are consumed by categorical_dates.py because range handling and
+# the artist two-century rule are easier to calculate in Python.
+SELECT DISTINCT ?subject ?startDate ?endDate ?artist ?birthDate ?deathDate ?style ?styleLabel WHERE {
+    {
+        OPTIONAL {
+            ?subject schema:startDate ?startDateValue .
+            FILTER(DATATYPE(?startDateValue) = xsd:gYear || DATATYPE(?startDateValue) = xsd:date)
+            BIND(?startDateValue AS ?startDate)
+        }
+        OPTIONAL {
+            ?subject schema:endDate ?endDateValue .
+            FILTER(DATATYPE(?endDateValue) = xsd:gYear || DATATYPE(?endDateValue) = xsd:date)
+            BIND(?endDateValue AS ?endDate)
+        }
+        FILTER(BOUND(?startDate) || BOUND(?endDate))
+    }
+    UNION
+    {
+        ?subject schema:artist ?artist .
+        OPTIONAL {
+            ?artist schema:birthDate ?birthDateValue .
+            FILTER(DATATYPE(?birthDateValue) = xsd:gYear || DATATYPE(?birthDateValue) = xsd:date)
+            BIND(?birthDateValue AS ?birthDate)
+        }
+        OPTIONAL {
+            ?artist schema:deathDate ?deathDateValue .
+            FILTER(DATATYPE(?deathDateValue) = xsd:gYear || DATATYPE(?deathDateValue) = xsd:date)
+            BIND(?deathDateValue AS ?deathDate)
+        }
+        FILTER(BOUND(?birthDate) || BOUND(?deathDate))
+    }
+    UNION
+    {
+        ?subject property:WikidataArchitecturalStyle ?style .
+        ?style rdfs:label ?styleLabel .
+    }
+}

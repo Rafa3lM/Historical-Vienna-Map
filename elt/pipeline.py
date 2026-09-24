@@ -12,6 +12,7 @@ from elt.kge import run_kge_step
 from elt.config import resolve_dump_path
 from config import RAW_BASE, RAW_RELATED, PROCESSED_DIR, GRAPHDB_SPARQL
 from elt.utils.query_loader import load_query
+from elt.transformers.categorical_dates import CategoricalDateTransformer
 
 
 # (display name, bound method name) for every pipeline step, in run order.
@@ -177,6 +178,10 @@ class ViennaDataPipeline:
         monument_enricher = WikidataMonumentEnricher()
         monument_enricher.enrich_with_wikidata_heritage_ids()
         monument_enricher.enrich_with_wikidata_architectural_styles()
+
+        # Derive categorical centuries only after styles have been inserted so
+        # the transformer can assign periods to the enriched style resources.
+        CategoricalDateTransformer().run()
         return True
 
     def step_7_load_districts(self):
