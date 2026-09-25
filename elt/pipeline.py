@@ -409,5 +409,6 @@ if __name__ == "__main__":
         pipeline.step_8_transform_coordinates()
         pipeline.step_9_link_buildings_to_districts()
         pipeline.step_10_validate()
+        pipeline.step_11_build_kge()
     else:
         pipeline.run_full_pipeline()
