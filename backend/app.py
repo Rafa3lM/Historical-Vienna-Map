@@ -1,11 +1,41 @@
 import os
+from collections import defaultdict
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Query, HTTPException
 from SPARQLWrapper import SPARQLWrapper, JSON
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from backend.queries import SparqlQueries
+from pathlib import Path
+import pandas as pd
 
-app = FastAPI(title="Vienna Historical Map API")
+
+GRAPHDB_URL = os.getenv("GRAPHDB_URL", "http://localhost:7200/repositories/vienna")
+
+# Indirect similarity
+SIMILARITY_PATH = Path("data/processed/similar_buildings.tsv")
+DEFAULT_THRESHOLD = 0.5
+DEFAULT_MAX_DEPTH = 8
+
+
+def load_similarity_graph():
+    df = pd.read_csv(SIMILARITY_PATH, sep="\t")
+    graph: dict[str, list[tuple[str, float]]] = defaultdict(list)
+
+    for _, row in df.iterrows():
+        graph[row["building"]].append((row["similar_to"], float(row["similarity"])))
+
+    return graph
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.similarity_graph = load_similarity_graph()
+    yield
+
+
+app = FastAPI(title="Vienna Historical Map API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -15,8 +45,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-GRAPHDB_URL = os.getenv("GRAPHDB_URL", "http://localhost:7200/repositories/vienna")
 
 
 def execute_sparql(query: str) -> dict:
@@ -300,6 +328,46 @@ def get_info_entity(uri: str) -> dict:
         details["namedAfter"] = named_after
 
     return details
+
+
+@app.get("/entity-indirect-similarity/{uri:path}")
+def get_indirect_similar_entities(uri: str) -> list[dict]:
+    """GET indirectly related entities"""
+    best_score: dict[str, float] = {uri: 1.0}
+    best_path: dict[str, list[str]] = {uri: [uri]}
+    frontier = [(uri, 1.0, [uri])]
+
+    graph = app.state.similarity_graph
+
+    for _ in range(DEFAULT_MAX_DEPTH):
+        next_frontier = []
+        for building, acc_score, path in frontier:
+            for neighbor, edge_score in graph.get(building, []):
+                new_score = acc_score * edge_score
+                if new_score < DEFAULT_THRESHOLD:
+                    continue
+                if neighbor in path:
+                    continue
+                if new_score <= best_score.get(neighbor, 0.0):
+                    continue
+                best_score[neighbor] = new_score
+                best_path[neighbor] = path + [neighbor]
+                next_frontier.append((neighbor, new_score, path + [neighbor]))
+        if not next_frontier:
+            break
+        frontier = next_frontier
+
+    results = [
+        {
+            "building": b,
+            "aggregate_score": round(s, 4),
+            "hops": len(best_path[b]) - 1,
+            "path": best_path[b],
+        }
+        for b, s in best_score.items()
+        if b != uri
+    ]
+    return sorted(results, key=lambda r: -r["aggregate_score"])
 
 
 if __name__ == "__main__":
