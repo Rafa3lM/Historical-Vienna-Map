@@ -18,6 +18,10 @@ function formatType(uri: string): string {
       .replace(/-28/g, '(').replace(/-29/g, ')').replace(/_/g, ' ');
 }
 
+function formatWienGeschichteWikiLink(uri: string): string {
+  return uri.replace(/-28/g, '(').replace(/-29/g, ')');
+}
+
 function formatUriList(list: string[]): string {
   return list.map(formatType).join(', ');
 }
@@ -113,7 +117,7 @@ function loadGeoEntityDetails(uri: string) {
         <!-- Wiki Link -->
         <div v-if="entityDetails.wikiPage" class="detail-item">
           <a
-              :href="entityDetails.wikiPage"
+              :href="formatWienGeschichteWikiLink(entityDetails.wikiPage)"
               target="_blank"
               class="wiki-link"
           >
