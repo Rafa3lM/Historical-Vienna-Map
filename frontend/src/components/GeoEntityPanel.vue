@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import type {GeoEntityDetails} from "../types/Entity.ts";
+import type {GeoEntityDetails, IndirectSimilarEntity} from "../types/Entity.ts";
+import {api} from "../services/api.ts";
+import {ref, watch} from "vue";
 
-defineProps<{
+const props = defineProps<{
   entityDetails: GeoEntityDetails;
   loadingDetails: boolean;
+  entityUri: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -11,6 +14,18 @@ const emit = defineEmits<{
   (e: 'open-info', uri: string): void;
   (e: 'open-geo', uri: string): void;
 }>();
+
+// State
+const loadingIndirectSimilarEntities = ref(false);
+const indirectSimilarEntities = ref<IndirectSimilarEntity[] | null>(null);
+
+watch(
+  () => props.entityUri,
+  () => {
+    indirectSimilarEntities.value = null;
+    loadingIndirectSimilarEntities.value = false;
+  }
+);
 
 function formatType(uri: string): string {
   if (!uri) return '';
@@ -40,6 +55,20 @@ function loadDetails(uri: string) {
 function loadGeoDetails(uri: string) {
   emit('open-geo', uri)
 }
+
+async function loadIndirectSimilarEntities(uri: string) {
+  loadingIndirectSimilarEntities.value = true;
+  try {
+    const res = await api.get(`/entity-indirect-similarity/${encodeURIComponent(uri)}`);
+    indirectSimilarEntities.value = res.data;
+  } catch (error) {
+    console.error('Failed to load indirect similar entities');
+
+  } finally {
+    loadingIndirectSimilarEntities.value = false;
+  }
+}
+
 </script>
 
 <template>
@@ -49,7 +78,7 @@ function loadGeoDetails(uri: string) {
     <div v-if="entityDetails.label" class="details-content">
       <h3>{{ entityDetails.label }}</h3>
 
-      <div v-if="loadingDetails" class="details-loading">
+      <div v-if="loadingIndirectSimilarEntities" class="details-loading">
         <div class="spinner-small"></div>
         Loading details...
       </div>
@@ -119,7 +148,7 @@ function loadGeoDetails(uri: string) {
           <div v-for="architect in entityDetails.architects"
                :key="architect"
                class="detail-link">
-            <span @click="!loadingDetails && loadDetails(architect)">{{ formatType(architect) }}</span>
+            <span @click="!loadingIndirectSimilarEntities && loadDetails(architect)">{{ formatType(architect) }}</span>
           </div>
         </div>
 
@@ -129,7 +158,7 @@ function loadGeoDetails(uri: string) {
           <div v-for="namedAfter in entityDetails.namedAfter"
                :key="namedAfter"
                class="detail-link">
-            <span @click="!loadingDetails && loadDetails(namedAfter)">{{
+            <span @click="!loadingIndirectSimilarEntities && loadDetails(namedAfter)">{{
                 formatType(namedAfter)
               }}</span>
           </div>
@@ -141,7 +170,7 @@ function loadGeoDetails(uri: string) {
           <div v-for="famousResident in entityDetails.famousInhabitants"
                :key="famousResident"
                class="detail-link">
-            <span @click="!loadingDetails && loadDetails(famousResident)">{{
+            <span @click="!loadingIndirectSimilarEntities && loadDetails(famousResident)">{{
                 formatType(famousResident)
               }}</span>
           </div>
@@ -187,13 +216,41 @@ function loadGeoDetails(uri: string) {
                class="similar-entities"
           >
             <div class="detail-link">
-              <span @click="!loadingDetails && loadGeoDetails(entity.entity)">
+              <span @click="!loadingIndirectSimilarEntities && loadGeoDetails(entity.entity)">
                 {{ formatType(entity.entity) }}
               </span>
             </div>
             <span>
               (Similarity: {{ entity.score }})
             </span>
+          </div>
+
+          <button v-if="!indirectSimilarEntities" @click="loadIndirectSimilarEntities(entityDetails.uri)">
+            Show more similar buildings
+          </button>
+
+          <div v-if="indirectSimilarEntities?.some(e => e.hops > 1)" style="margin-left: 20px">
+            <strong>Indirectly related (experimental):</strong>
+            <div v-for="entity in indirectSimilarEntities.filter(e => e.hops > 1)"
+                 :key="entity.building"
+                 class="similar-entities"
+            >
+              <div class="detail-link">
+              <span @click="!loadingIndirectSimilarEntities && loadGeoDetails(entity.building)">
+                {{ formatType(entity.building) }}
+              </span>
+              </div>
+              <span>
+                (Aggregated similarity: {{ entity.aggregate_score }})
+              </span>
+              <span>
+                (Hops: {{ entity.hops }})
+              </span>
+            </div>
+          </div>
+          <div v-else-if="indirectSimilarEntities">
+            <strong>Indirectly related (experimental):</strong>
+            <span>No other similar entities found</span>
           </div>
         </div>
 

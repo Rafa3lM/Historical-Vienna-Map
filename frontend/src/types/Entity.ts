@@ -14,6 +14,13 @@ export interface Entity {
     historical?: string;
 }
 
+export interface IndirectSimilarEntity {
+    building: string;
+    aggregate_score: number;
+    hops: number;
+    path: string[];
+}
+
 export interface GeoEntityDetails {
     uri: string;
     type: string;

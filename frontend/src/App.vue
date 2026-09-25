@@ -260,6 +260,7 @@
         v-if="entityDetails"
         :entity-details="entityDetails"
         :loading-details="loadingDetails"
+        :entity-uri="entityUri"
         @close="closeGeoPanel"
         @open-info="loadInfoEntityDetails"
         @open-geo="loadGeoEntityDetails"
@@ -309,6 +310,7 @@ const resultsCount = ref<number | null>(null);
 const selectedEntity = ref<Entity | null>(null);
 const selectedInfoEntity = ref<InfoEntityDetails | null>(null);
 const entityDetails = ref<GeoEntityDetails | null>(null);
+const entityUri = ref<string | null>(null);
 const timeRangeMode = ref<'overlap' | 'contained'>('overlap');
 
 
@@ -518,6 +520,7 @@ async function loadGeoEntityDetails(uri: string) {
   try {
     const res = await api.get(`/entity-geo/${encodeURIComponent(uri)}`);
     entityDetails.value = res.data;
+    entityUri.value = uri;
     //selectedInfoEntity.value = null;
   } catch (error) {
     console.error('Failed to load entity details:', error);
