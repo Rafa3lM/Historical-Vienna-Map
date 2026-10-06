@@ -87,6 +87,15 @@ This pipeline extracts historical data about Vienna's buildings, events, and rel
 - Confirms district linkages
 - Reports final statistics
 
+### KGE Layer
+
+**Step 11: Build the KGE layer extending the base graph**
+- Exports all relevant triples
+- Trains kge models (default=RotatE) and  prints performance metrics
+- Predicts missing architectural styles for buildings
+- Computes top-k (default k = 5) similarities and clusters
+- Writes data back to GraphDB as *kge-derived* graph
+
 ## Usage
 
 ### Full Pipeline
@@ -127,6 +136,15 @@ docker-compose exec elt python -m elt.pipeline --step 6
 docker-compose exec elt python -m elt.pipeline --step "Enrich Data"
 docker-compose exec elt python -m elt.pipeline --step enrich
 ```
+
+Single KGE layer steps can be run like this:
+```bash
+docker-compose exec elt python -m elt.kge.<step>
+```
+available steps are *exporter*, *trainer*, *predictor*, *similarity*, and *writer*
+
+This allows to modify the selected models and hyperparameters, and to display comparison 
+metrics or grid search results without having to re-run the entire KGE step including all trainings.
 
 ### Combined Options
 ```bash
